@@ -1,0 +1,190 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import MetricsCards from './MetricsCards';
+import SolarProductionChart from './SolarProductionChart';
+import BatteryStatus from './BatteryStatus';
+import WeatherWidget from './WeatherWidget';
+import EnergyFlowDiagram from './EnergyFlowDiagram';
+import PredictionsPanel from './PredictionsPanel';
+import { SolarData, BatteryStatus as BatteryStatusType, SystemMetrics, EnergyFlow, WeatherData, Prediction, Alert } from '@/types';
+import { RefreshCw, Loader2 } from 'lucide-react';
+
+export default function Dashboard() {
+  const [solarData, setSolarData] = useState<{
+    current: SolarData;
+    historical: SolarData[];
+    battery: BatteryStatusType;
+    metrics: SystemMetrics;
+    energyFlow: EnergyFlow;
+  } | null>(null);
+
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+
+  const [predictionsData, setPredictionsData] = useState<{
+    predictions: Prediction[];
+    alerts: Alert[];
+    recommendations: string[];
+  } | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  // Fetch all data
+  const fetchData = async () => {
+    try {
+      const [solarRes, weatherRes, predictionsRes] = await Promise.all([
+        fetch('/api/solar'),
+        fetch('/api/weather'),
+        fetch('/api/predictions'),
+      ]);
+
+      const solar = await solarRes.json();
+      const weather = await weatherRes.json();
+      const predictions = await predictionsRes.json();
+
+      setSolarData(solar);
+      setWeatherData(weather);
+      setPredictionsData(predictions);
+      setLastUpdate(new Date());
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setLoading(false);
+    }
+  };
+
+  // Initial fetch and auto-refresh every 5 seconds
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading || !solarData || !weatherData || !predictionsData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400 text-lg">Cargando Gemelo Digital...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+      {/* Header */}
+      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-[1800px] mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-extrabold text-white mb-1">
+                ⚡ Gemelo Digital - Microrred Solar
+              </h1>
+              <p className="text-sm text-gray-400">
+                Sistema de monitoreo y predicción en tiempo real
+              </p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-xs text-gray-500">Última actualización</p>
+                <p className="text-sm font-semibold text-gray-300">
+                  {lastUpdate.toLocaleTimeString('es-ES')}
+                </p>
+              </div>
+              <button
+                onClick={fetchData}
+                className="p-3 bg-green-400/10 border border-green-400/20 rounded-lg hover:bg-green-400/20 transition-colors group"
+                title="Actualizar datos"
+              >
+                <RefreshCw className="w-5 h-5 text-green-400 group-hover:rotate-180 transition-transform duration-500" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-[1800px] mx-auto px-6 py-8">
+        {/* Metrics Cards */}
+        <div className="mb-8">
+          <MetricsCards metrics={solarData.metrics} />
+        </div>
+
+        {/* Main Grid Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Left Column - 2 cols */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Production Chart */}
+            <SolarProductionChart data={solarData.historical} />
+
+            {/* Energy Flow Diagram */}
+            <EnergyFlowDiagram
+              energyFlow={solarData.energyFlow}
+              production={solarData.current.production}
+              consumption={solarData.current.consumption}
+              batteryLevel={solarData.battery.chargeLevel}
+            />
+          </div>
+
+          {/* Right Column - 1 col */}
+          <div className="space-y-6">
+            {/* Battery Status */}
+            <BatteryStatus battery={solarData.battery} />
+
+            {/* Weather Widget */}
+            <WeatherWidget weather={weatherData} />
+          </div>
+        </div>
+
+        {/* Predictions Panel - Full Width */}
+        <div>
+          <PredictionsPanel
+            predictions={predictionsData.predictions}
+            alerts={predictionsData.alerts}
+            recommendations={predictionsData.recommendations}
+          />
+        </div>
+
+        {/* Footer Info */}
+        <div className="mt-8 p-6 bg-gray-900/30 border border-gray-800 rounded-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Capacidad Instalada</p>
+              <p className="text-lg font-bold text-white">50 kW</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Almacenamiento</p>
+              <p className="text-lg font-bold text-white">100 kWh</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Producción Diaria</p>
+              <p className="text-lg font-bold text-green-400">
+                {solarData.metrics.dailyProduction.toFixed(1)} kWh
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">CO₂ Evitado Hoy</p>
+              <p className="text-lg font-bold text-emerald-400">
+                {solarData.metrics.co2Avoided.toFixed(1)} kg
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-800 bg-gray-900/50 mt-12">
+        <div className="max-w-[1800px] mx-auto px-6 py-6">
+          <div className="text-center text-sm text-gray-500">
+            <p>Gemelo Digital de Microrred Fotovoltaica • Sistema de Monitoreo Inteligente</p>
+            <p className="mt-1 text-xs">
+              Datos simulados con algoritmos realistas basados en física solar
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
