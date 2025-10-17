@@ -1,152 +1,119 @@
 import { BatteryStatus as BatteryStatusType } from '@/types';
-import { Battery, BatteryCharging, BatteryWarning, Zap } from 'lucide-react';
+import { Battery, ArrowUpRight, ArrowDownLeft, ShieldAlert, Gauge, Info } from 'lucide-react';
 
 interface BatteryStatusProps {
   battery: BatteryStatusType;
 }
 
 export default function BatteryStatus({ battery }: BatteryStatusProps) {
-  const { chargeLevel, current, capacity, autonomyHours, charging, powerFlow } = battery;
+  const {
+    chargeLevel,
+    current,
+    capacity,
+    autonomyHours,
+    charging,
+    powerFlow,
+    projectedMinLevel,
+    projectedMaxLevel,
+    note,
+  } = battery;
 
-  // Determine battery color based on level
-  const getColorClass = (level: number) => {
-    if (level >= 70) return 'text-green-400';
-    if (level >= 40) return 'text-yellow-400';
-    if (level >= 20) return 'text-orange-400';
-    return 'text-red-400';
-  };
-
-  const getBgColorClass = (level: number) => {
-    if (level >= 70) return 'bg-green-400';
-    if (level >= 40) return 'bg-yellow-400';
-    if (level >= 20) return 'bg-orange-400';
-    return 'bg-red-400';
-  };
-
-  const colorClass = getColorClass(chargeLevel);
-  const bgColorClass = getBgColorClass(chargeLevel);
-
-  // SVG circle parameters
-  const size = 180;
-  const strokeWidth = 12;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (chargeLevel / 100) * circumference;
-
-  // Get appropriate icon
-  const BatteryIcon = chargeLevel < 20 ? BatteryWarning : charging ? BatteryCharging : Battery;
+  const flowLabel = charging
+    ? 'Carga prevista'
+    : powerFlow < 0
+      ? 'Descarga prevista'
+      : 'Sin flujo estimado';
+  const flowClass = charging
+    ? 'text-green-400 bg-green-400/10 border-green-400/20'
+    : powerFlow < 0
+      ? 'text-orange-400 bg-orange-400/10 border-orange-400/20'
+      : 'text-gray-400 bg-gray-800/60 border-gray-700';
+  const flowIcon = charging ? ArrowUpRight : powerFlow < 0 ? ArrowDownLeft : Gauge;
+  const FlowIcon = flowIcon;
+  const formattedAutonomy =
+    autonomyHours >= 999 ? 'N/D' : `${autonomyHours.toFixed(1)} h`;
 
   return (
     <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
-      <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between">
         <h2 className="text-2xl font-bold text-white mb-1">
-          Estado de Batería
+          Planificación de batería
         </h2>
-        <p className="text-sm text-gray-400">
-          Capacidad: {capacity} kWh
-        </p>
+        <span className="text-[11px] uppercase tracking-wide text-gray-500 bg-gray-800/80 border border-gray-700 px-2 py-1 rounded">
+          Estimación
+        </span>
       </div>
 
-      <div className="flex flex-col items-center">
-        {/* Circular progress indicator */}
-        <div className="relative">
-          <svg width={size} height={size} className="transform -rotate-90">
-            {/* Background circle */}
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke="#1f2937"
-              strokeWidth={strokeWidth}
-            />
-            {/* Progress circle */}
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={strokeWidth}
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              strokeLinecap="round"
-              className={`${colorClass} transition-all duration-500`}
-            />
-          </svg>
-
-          {/* Center content */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <BatteryIcon className={`w-8 h-8 ${colorClass} mb-2`} />
-            <div className={`text-4xl font-extrabold ${colorClass}`}>
-              {chargeLevel.toFixed(0)}%
-            </div>
-            <div className="text-sm text-gray-400 mt-1">
-              {current.toFixed(1)} kWh
-            </div>
+      <div className="space-y-5">
+        <div className="flex items-center gap-3 p-4 bg-gray-800/60 border border-gray-700 rounded-lg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-400/10 border border-emerald-400/20">
+            <Battery className="w-6 h-6 text-emerald-300" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500">
+              Capacidad nominal
+            </p>
+            <p className="text-lg font-semibold text-white">
+              {capacity} kWh
+            </p>
+            <p className="text-xs text-gray-500">
+              Punto de partida asumido: ≈{chargeLevel.toFixed(1)}% ({current.toFixed(1)} kWh)
+            </p>
           </div>
         </div>
 
-        {/* Battery stats */}
-        <div className="w-full mt-8 space-y-3">
-          {/* Charging/Discharging status */}
-          <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Zap className={`w-4 h-4 ${charging ? 'text-green-400' : 'text-orange-400'}`} />
-              <span className="text-sm text-gray-300">Estado</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-bold ${charging ? 'text-green-400' : 'text-orange-400'}`}>
-                {charging ? 'Cargando' : powerFlow < 0 ? 'Descargando' : 'En espera'}
-              </span>
-              {powerFlow !== 0 && (
-                <span className="text-xs text-gray-400">
-                  ({Math.abs(powerFlow).toFixed(1)} kW)
-                </span>
-              )}
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3 border border-gray-800 rounded-lg bg-gray-900/40">
+            <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+              Rango proyectado (24h)
+            </p>
+            <p className="text-sm font-semibold text-gray-300">
+              {projectedMinLevel?.toFixed(1)}% → {projectedMaxLevel?.toFixed(1)}%
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Calculado con irradiancia prevista
+            </p>
           </div>
-
-          {/* Autonomy */}
-          <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-            <span className="text-sm text-gray-300">Autonomía</span>
-            <span className="text-sm font-bold text-white">
-              {autonomyHours >= 999 ? '∞' : `${autonomyHours.toFixed(1)} horas`}
-            </span>
-          </div>
-
-          {/* Energy stored */}
-          <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-            <span className="text-sm text-gray-300">Energía Almacenada</span>
-            <span className="text-sm font-bold text-white">
-              {current.toFixed(1)} / {capacity} kWh
-            </span>
+          <div className="p-3 border border-gray-800 rounded-lg bg-gray-900/40">
+            <p className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+              Autonomía estimada bajo carga actual
+            </p>
+            <p className="text-sm font-semibold text-gray-300">
+              {formattedAutonomy}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Basado en consumo proyectado inmediato
+            </p>
           </div>
         </div>
 
-        {/* Warning indicator */}
-        {chargeLevel < 20 && (
-          <div className="mt-4 w-full p-3 bg-red-400/10 border border-red-400/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <BatteryWarning className="w-4 h-4 text-red-400" />
-              <span className="text-xs text-red-400 font-medium">
-                Batería baja - Considere reducir consumo
-              </span>
-            </div>
+        <div
+          className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-3 ${flowClass}`}
+        >
+          <div className="flex items-center gap-2">
+            <FlowIcon className="w-4 h-4" />
+            <span className="text-xs uppercase tracking-wide">{flowLabel}</span>
           </div>
-        )}
+          <span className="text-sm font-semibold">
+            {Math.abs(powerFlow).toFixed(1)} kW
+          </span>
+        </div>
 
-        {/* Fully charged indicator */}
-        {chargeLevel >= 95 && (
-          <div className="mt-4 w-full p-3 bg-green-400/10 border border-green-400/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <BatteryCharging className="w-4 h-4 text-green-400" />
-              <span className="text-xs text-green-400 font-medium">
-                Batería completamente cargada
-              </span>
-            </div>
+        <div className="flex items-start gap-3 text-xs text-gray-400 bg-gray-800/40 border border-gray-700 rounded-lg p-3">
+          <Info className="w-4 h-4 mt-0.5 text-gray-500" />
+          <div className="space-y-1">
+            <p>
+              {note ??
+                'Sin telemetría de estado de carga. Se utiliza un punto de partida asumido junto con el pronóstico climático para esta proyección.'}
+            </p>
+            {projectedMinLevel !== undefined && projectedMinLevel < 25 && (
+              <div className="flex items-center gap-2 text-red-300">
+                <ShieldAlert className="w-4 h-4" />
+                <span>El nivel estimado podría descender por debajo de 25%. Considere respaldo.</span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

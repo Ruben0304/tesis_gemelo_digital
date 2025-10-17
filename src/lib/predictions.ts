@@ -1,4 +1,4 @@
-import { Prediction, DayForecast, Alert } from '@/types';
+import { Prediction, DayForecast, Alert, BatteryStatus } from '@/types';
 import { addHours, format } from 'date-fns';
 
 const SOLAR_CAPACITY = 50; // kW
@@ -180,29 +180,31 @@ function calculatePredictionConfidence(hoursAhead: number, cloudCover: number): 
  */
 export function generateAlerts(
   predictions: Prediction[],
-  batteryLevel: number,
+  batteryStatus: BatteryStatus,
   weatherForecast: DayForecast[]
 ): Alert[] {
   const alerts: Alert[] = [];
+  const startingLevel = batteryStatus.chargeLevel;
+  const projectedMin = batteryStatus.projectedMinLevel ?? startingLevel;
 
   // Check for low battery
-  if (batteryLevel < 20) {
+  if (projectedMin < 20) {
     alerts.push({
       id: 'battery-low',
       type: 'warning',
-      title: 'Batería Baja',
-      message: `Nivel de batería en ${batteryLevel.toFixed(1)}%. Se recomienda reducir consumo.`,
+      title: 'Reserva de Batería Limitada',
+      message: `Proyección mínima de ${projectedMin.toFixed(1)}% sin telemetría. Considere reducir consumos continuos.`,
       timestamp: new Date().toISOString(),
     });
   }
 
   // Check for very low battery
-  if (batteryLevel < 10) {
+  if (projectedMin < 10) {
     alerts.push({
       id: 'battery-critical',
       type: 'critical',
-      title: 'Batería Crítica',
-      message: `Nivel de batería crítico: ${batteryLevel.toFixed(1)}%. Riesgo de corte de energía.`,
+      title: 'Reserva Crítica Estimada',
+      message: `La proyección indica un mínimo de ${projectedMin.toFixed(1)}%. Asegure respaldo externo.`,
       timestamp: new Date().toISOString(),
     });
   }
@@ -238,7 +240,7 @@ export function generateAlerts(
     return sum + (deficit > 0 ? deficit : 0);
   }, 0) / 6;
 
-  if (avgDeficit > 10 && batteryLevel < 50) {
+  if (avgDeficit > 10 && projectedMin < 50) {
     alerts.push({
       id: 'deficit-warning',
       type: 'warning',
@@ -256,45 +258,49 @@ export function generateAlerts(
  */
 export function generateRecommendations(
   predictions: Prediction[],
-  batteryLevel: number,
-  currentProduction: number,
-  currentConsumption: number
+  batteryStatus: BatteryStatus
 ): string[] {
   const recommendations: string[] = [];
+  const currentPrediction = predictions[0];
+  const currentProduction = currentPrediction?.expectedProduction ?? 0;
+  const currentConsumption = currentPrediction?.expectedConsumption ?? 0;
+  const batteryLevel = batteryStatus.chargeLevel;
+  const projectedMin = batteryStatus.projectedMinLevel ?? batteryLevel;
+  const projectedMax = batteryStatus.projectedMaxLevel ?? batteryLevel;
 
   // Current surplus - recommend charging devices
   if (currentProduction > currentConsumption * 1.2) {
-    recommendations.push('Excedente solar disponible. Momento ideal para cargar vehículos eléctricos o baterías.');
+    recommendations.push('Se proyecta excedente solar inmediato. Buen momento para programar cargas intensivas supervisadas.');
   }
 
   // Low battery with good production coming
   const next3Hours = predictions.slice(0, 3);
   const avgProduction = next3Hours.reduce((sum, p) => sum + p.expectedProduction, 0) / 3;
 
-  if (batteryLevel < 40 && avgProduction > 30) {
-    recommendations.push('La batería está baja pero se espera buena producción solar. Posponga consumos intensivos 2-3 horas.');
+  if (projectedMin < 40 && avgProduction > 30) {
+    recommendations.push('Aunque la reserva es limitada, se espera repunte solar en pocas horas. Posponga consumos pesados hasta después del pico solar.');
   }
 
   // Peak production hours approaching
   const currentHour = new Date().getHours();
-  if (currentHour >= 9 && currentHour <= 11 && batteryLevel < 70) {
-    recommendations.push('Se aproximan las horas de mayor producción solar (12-14h). Planifique actividades de alto consumo para este período.');
+  if (currentHour >= 9 && currentHour <= 11 && projectedMax < 85) {
+    recommendations.push('Se aproximan las horas de mayor producción (12-14h). Coordine actividades de alto consumo dentro de esa ventana.');
   }
 
   // Evening approaching with low battery
-  if (currentHour >= 16 && currentHour <= 18 && batteryLevel < 50) {
-    recommendations.push('La producción solar disminuirá pronto. Considere cargar la batería o reducir consumo vespertino.');
+  if (currentHour >= 16 && currentHour <= 18 && projectedMin < 50) {
+    recommendations.push('La producción solar caerá al atardecer. Asegure carga mínima o reduzca consumos no esenciales esta noche.');
   }
 
   // Excellent conditions
   if (currentProduction > SOLAR_CAPACITY * 0.8) {
-    recommendations.push(`Sistema operando a ${((currentProduction / SOLAR_CAPACITY) * 100).toFixed(0)}% de capacidad. Excelentes condiciones solares.`);
+    recommendations.push(`La proyección indica operación cercana al ${((currentProduction / SOLAR_CAPACITY) * 100).toFixed(0)}% de la capacidad instalada. Aproveche para tareas que requieran potencia.`);
   }
 
   // Poor production day
   const todayPrediction = predictions[0];
   if (todayPrediction && todayPrediction.expectedProduction < SOLAR_CAPACITY * 0.3) {
-    recommendations.push('Día de baja producción solar. Priorice consumos esenciales y considere usar energía de red para cargas críticas.');
+    recommendations.push('Día de baja producción estimada. Priorice consumos esenciales y considere apoyo de la red para cargas críticas.');
   }
 
   return recommendations;

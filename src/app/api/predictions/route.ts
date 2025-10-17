@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { generateWeatherData, getCurrentSolarData } from '@/lib/mockData';
+import { generateWeatherData, buildProjectedSolarTimeline, generateBatteryProjection } from '@/lib/mockData';
 import { generateHourlyPredictions, generateAlerts, generateRecommendations } from '@/lib/predictions';
 
 export const dynamic = 'force-dynamic';
@@ -11,30 +11,31 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const weatherData = generateWeatherData();
-    const currentData = getCurrentSolarData();
 
     // Generate 24-hour predictions
     const predictions = generateHourlyPredictions(weatherData.forecast);
+    const projectedTimeline = buildProjectedSolarTimeline(predictions);
+    const batteryProjection = generateBatteryProjection(projectedTimeline, predictions);
 
     // Generate intelligent alerts
     const alerts = generateAlerts(
       predictions,
-      currentData.batteryLevel,
+      batteryProjection,
       weatherData.forecast
     );
 
     // Generate recommendations
     const recommendations = generateRecommendations(
       predictions,
-      currentData.batteryLevel,
-      currentData.production,
-      currentData.consumption
+      batteryProjection
     );
 
     return NextResponse.json({
       predictions,
       alerts,
       recommendations,
+      battery: batteryProjection,
+      timeline: projectedTimeline,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

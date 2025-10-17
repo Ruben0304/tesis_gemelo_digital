@@ -1,5 +1,5 @@
-import { SolarData, WeatherData, DayForecast, BatteryStatus, WeatherCondition } from '@/types';
-import { addHours, format, addDays, startOfDay } from 'date-fns';
+import { SolarData, WeatherData, DayForecast, BatteryStatus, WeatherCondition, Prediction } from '@/types';
+import { format, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // System configuration
@@ -7,6 +7,9 @@ const SOLAR_CAPACITY = 50; // kW
 const BATTERY_CAPACITY = 100; // kWh
 const BASE_CONSUMPTION_DAY = 35; // kW average during day
 const BASE_CONSUMPTION_NIGHT = 18; // kW average during night
+
+export const SOLAR_CAPACITY_KW = SOLAR_CAPACITY;
+export const BATTERY_CAPACITY_KWH = BATTERY_CAPACITY;
 
 /**
  * Generate realistic solar production following a Gaussian curve
@@ -123,55 +126,55 @@ function generateSolarRadiation(hour: number, cloudCover: number): number {
 /**
  * Generate 24 hours of historical solar data
  */
-export function generateHistoricalData(scenario: 'sunny' | 'cloudy' | 'variable' = 'sunny'): SolarData[] {
-  const data: SolarData[] = [];
-  const now = new Date();
-  let batteryLevel = 60; // Start at 60%
+export function buildProjectedSolarTimeline(
+  predictions: Prediction[],
+  initialBatteryLevel: number = 55
+): SolarData[] {
+  const timeline: SolarData[] = [];
+  let storedEnergy = (initialBatteryLevel / 100) * BATTERY_CAPACITY;
 
-  for (let i = 23; i >= 0; i--) {
-    const timestamp = addHours(now, -i);
-    const hour = timestamp.getHours();
+  predictions.slice(0, 24).forEach((prediction) => {
+    const production = Math.max(0, prediction.expectedProduction);
+    const consumption = Math.max(0, prediction.expectedConsumption);
+    const net = production - consumption;
 
-    // Determine cloud cover based on scenario
-    let cloudCover: number;
-    if (scenario === 'sunny') {
-      cloudCover = 5 + Math.random() * 10;
-    } else if (scenario === 'cloudy') {
-      cloudCover = 70 + Math.random() * 20;
+    let gridExport = 0;
+    let gridImport = 0;
+    let batteryDelta = 0;
+
+    if (net >= 0) {
+      const availableCapacity = BATTERY_CAPACITY - storedEnergy;
+      const energyToBattery = Math.min(net, availableCapacity);
+      storedEnergy += energyToBattery;
+      batteryDelta = energyToBattery;
+      gridExport = net - energyToBattery;
     } else {
-      // Variable: changes every few hours
-      cloudCover = (Math.floor(hour / 3) % 2 === 0) ? 10 + Math.random() * 20 : 60 + Math.random() * 30;
+      const demand = Math.abs(net);
+      const energyFromBattery = Math.min(storedEnergy, demand);
+      storedEnergy -= energyFromBattery;
+      batteryDelta = -energyFromBattery;
+      gridImport = demand - energyFromBattery;
     }
 
-    const solarRadiation = generateSolarRadiation(hour, cloudCover);
-    const production = generateSolarProduction(hour, solarRadiation, cloudCover);
-    const consumption = generateConsumption(hour);
+    const batteryLevel = Math.max(0, Math.min(100, (storedEnergy / BATTERY_CAPACITY) * 100));
+    const efficiency = Math.max(
+      75,
+      Math.min(96, 82 + (prediction.confidence - 70) * 0.25)
+    );
 
-    // Update battery level
-    batteryLevel = calculateBatteryLevel(batteryLevel, production, consumption, 1);
-
-    // Calculate grid flows
-    const balance = production - consumption;
-    const gridExport = Math.max(0, balance);
-    const gridImport = Math.max(0, -balance);
-
-    // Calculate system efficiency (decreases with high temperature and age)
-    const baseEfficiency = 95;
-    const tempLoss = hour >= 12 && hour <= 16 ? 2 : 0; // Loss during hot hours
-    const efficiency = baseEfficiency - tempLoss + (Math.random() * 2 - 1);
-
-    data.push({
-      timestamp: timestamp.toISOString(),
+    timeline.push({
+      timestamp: prediction.timestamp,
       production: Math.round(production * 100) / 100,
       consumption: Math.round(consumption * 100) / 100,
       batteryLevel: Math.round(batteryLevel * 100) / 100,
       gridExport: Math.round(gridExport * 100) / 100,
       gridImport: Math.round(gridImport * 100) / 100,
       efficiency: Math.round(efficiency * 100) / 100,
+      batteryDelta: Math.round(batteryDelta * 100) / 100,
     });
-  }
+  });
 
-  return data;
+  return timeline;
 }
 
 /**
@@ -250,28 +253,30 @@ function generateForecast(): DayForecast[] {
 /**
  * Generate current battery status
  */
-export function generateBatteryStatus(currentLevel: number, production: number, consumption: number): BatteryStatus {
-  const current = (currentLevel / 100) * BATTERY_CAPACITY;
-  const powerFlow = production - consumption;
-  const charging = powerFlow > 0;
+export function generateBatteryProjection(
+  timeline: SolarData[],
+  predictions: Prediction[]
+): BatteryStatus {
+  const firstEntry = timeline[0];
+  const storedEnergy = firstEntry
+    ? (firstEntry.batteryLevel / 100) * BATTERY_CAPACITY
+    : (55 / 100) * BATTERY_CAPACITY;
 
-  // Calculate autonomy hours (how long battery can sustain current load)
-  const autonomyHours = consumption > 0 ? current / consumption : 999;
+  const projectedMinLevel = Math.min(...timeline.map((entry) => entry.batteryLevel));
+  const projectedMaxLevel = Math.max(...timeline.map((entry) => entry.batteryLevel));
+  const upcomingConsumption = predictions[0]?.expectedConsumption ?? 0;
+  const autonomyHours = upcomingConsumption > 0 ? storedEnergy / upcomingConsumption : 999;
+  const batteryDelta = firstEntry?.batteryDelta ?? 0;
 
   return {
-    chargeLevel: Math.round(currentLevel * 100) / 100,
+    chargeLevel: Math.round((firstEntry?.batteryLevel ?? 55) * 100) / 100,
     capacity: BATTERY_CAPACITY,
-    current: Math.round(current * 100) / 100,
+    current: Math.round(storedEnergy * 100) / 100,
     autonomyHours: Math.round(autonomyHours * 10) / 10,
-    charging,
-    powerFlow: Math.round(powerFlow * 100) / 100,
+    charging: batteryDelta >= 0,
+    powerFlow: Math.round(batteryDelta * 100) / 100,
+    projectedMinLevel: Math.round(projectedMinLevel * 100) / 100,
+    projectedMaxLevel: Math.round(projectedMaxLevel * 100) / 100,
+    note: 'Estimación basada en clima y ficha técnica. No hay telemetría en vivo.',
   };
-}
-
-/**
- * Get current solar data (most recent from historical)
- */
-export function getCurrentSolarData(): SolarData {
-  const historical = generateHistoricalData('sunny');
-  return historical[historical.length - 1];
 }

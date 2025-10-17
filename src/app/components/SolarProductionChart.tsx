@@ -59,10 +59,10 @@ export default function SolarProductionChart({ data }: SolarProductionChartProps
     <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-white mb-1">
-          Producción vs Consumo
+          Proyección de producción vs consumo
         </h2>
         <p className="text-sm text-gray-400">
-          Últimas 24 horas
+          Próximas 24 horas basadas en clima y especificaciones del sistema
         </p>
       </div>
 
@@ -121,24 +121,27 @@ export default function SolarProductionChart({ data }: SolarProductionChartProps
       {/* Summary stats */}
       <div className="mt-6 grid grid-cols-3 gap-4">
         <div className="text-center p-3 bg-green-400/10 rounded-lg border border-green-400/20">
-          <p className="text-xs text-gray-400 mb-1">Producción Total</p>
+          <p className="text-xs text-gray-400 mb-1">Producción estimada</p>
           <p className="text-lg font-bold text-green-400">
-            {chartData.reduce((sum, d) => sum + d.producción, 0).toFixed(1)} kWh
+            ≈{chartData.reduce((sum, d) => sum + d.producción, 0).toFixed(1)} kWh
           </p>
         </div>
         <div className="text-center p-3 bg-blue-400/10 rounded-lg border border-blue-400/20">
-          <p className="text-xs text-gray-400 mb-1">Consumo Total</p>
+          <p className="text-xs text-gray-400 mb-1">Consumo estimado</p>
           <p className="text-lg font-bold text-blue-400">
-            {chartData.reduce((sum, d) => sum + d.consumo, 0).toFixed(1)} kWh
+            ≈{chartData.reduce((sum, d) => sum + d.consumo, 0).toFixed(1)} kWh
           </p>
         </div>
         <div className="text-center p-3 bg-emerald-400/10 rounded-lg border border-emerald-400/20">
-          <p className="text-xs text-gray-400 mb-1">Balance Neto</p>
+          <p className="text-xs text-gray-400 mb-1">Balance neto proyectado</p>
           <p className="text-lg font-bold text-emerald-400">
-            {chartData.reduce((sum, d) => sum + d.balance, 0).toFixed(1)} kWh
+            ≈{chartData.reduce((sum, d) => sum + d.balance, 0).toFixed(1)} kWh
           </p>
         </div>
       </div>
+      <p className="mt-4 text-xs text-gray-500">
+        Datos generados sin telemetría en vivo; el cálculo se alimenta únicamente de condiciones atmosféricas y características del arreglo.
+      </p>
     </div>
   );
 }

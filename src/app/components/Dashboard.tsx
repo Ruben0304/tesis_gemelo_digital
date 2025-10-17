@@ -54,10 +54,10 @@ export default function Dashboard() {
     }
   };
 
-  // Initial fetch and auto-refresh every 5 seconds
+  // Initial fetch and auto-refresh every 60 seconds
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000);
+    const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -83,7 +83,7 @@ export default function Dashboard() {
                 ⚡ Gemelo Digital - Microrred Solar
               </h1>
               <p className="text-sm text-gray-400">
-                Sistema de monitoreo y predicción en tiempo real
+                Planeación energética con proyecciones meteo • sin telemetría directa
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -96,7 +96,7 @@ export default function Dashboard() {
               <button
                 onClick={fetchData}
                 className="p-3 bg-green-400/10 border border-green-400/20 rounded-lg hover:bg-green-400/20 transition-colors group"
-                title="Actualizar datos"
+                title="Actualizar proyecciones"
               >
                 <RefreshCw className="w-5 h-5 text-green-400 group-hover:rotate-180 transition-transform duration-500" />
               </button>
@@ -159,18 +159,21 @@ export default function Dashboard() {
               <p className="text-lg font-bold text-white">100 kWh</p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">Producción Diaria</p>
+              <p className="text-xs text-gray-500 mb-1">Producción estimada (24h)</p>
               <p className="text-lg font-bold text-green-400">
-                {solarData.metrics.dailyProduction.toFixed(1)} kWh
+                ≈{solarData.metrics.dailyProduction.toFixed(1)} kWh
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 mb-1">CO₂ Evitado Hoy</p>
+              <p className="text-xs text-gray-500 mb-1">CO₂ evitado (estimado)</p>
               <p className="text-lg font-bold text-emerald-400">
-                {solarData.metrics.co2Avoided.toFixed(1)} kg
+                ≈{solarData.metrics.co2Avoided.toFixed(1)} kg
               </p>
             </div>
           </div>
+          <p className="mt-4 text-xs text-gray-500 text-center">
+            Todos los valores energéticos representan escenarios proyectados con datos climáticos de referencia y capacidades nominales Felicity.
+          </p>
         </div>
       </main>
 
@@ -178,9 +181,9 @@ export default function Dashboard() {
       <footer className="border-t border-gray-800 bg-gray-900/50 mt-12">
         <div className="max-w-[1800px] mx-auto px-6 py-6">
           <div className="text-center text-sm text-gray-500">
-            <p>Gemelo Digital de Microrred Fotovoltaica • Sistema de Monitoreo Inteligente</p>
+            <p>Gemelo Digital de Microrred Fotovoltaica • Enfoque de planificación y predicción</p>
             <p className="mt-1 text-xs">
-              Datos simulados con algoritmos realistas basados en física solar
+              Proyecciones alimentadas por clima en vivo y ficha técnica de paneles Felicity. Sin mediciones directas de campo.
             </p>
           </div>
         </div>

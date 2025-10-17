@@ -1,44 +1,47 @@
 import { NextResponse } from 'next/server';
-import { generateHistoricalData, getCurrentSolarData, generateBatteryStatus } from '@/lib/mockData';
+import {
+  generateWeatherData,
+  buildProjectedSolarTimeline,
+  generateBatteryProjection,
+} from '@/lib/mockData';
 import { calculateSystemMetrics, calculateEnergyFlow } from '@/lib/calculations';
+import { generateHourlyPredictions } from '@/lib/predictions';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/solar
- * Returns current solar data, 24h historical data, metrics, and energy flow
+ * Returns projected solar data, 24h forecast timeline, metrics, and energy flow estimates
  */
 export async function GET() {
   try {
-    // Generate realistic data
-    const historicalData = generateHistoricalData('sunny');
-    const currentData = historicalData[historicalData.length - 1];
+    const weatherData = generateWeatherData();
+    const predictions = generateHourlyPredictions(weatherData.forecast);
+    const projectedTimeline = buildProjectedSolarTimeline(predictions);
 
-    // Calculate battery status
-    const batteryStatus = generateBatteryStatus(
-      currentData.batteryLevel,
-      currentData.production,
-      currentData.consumption
-    );
+    if (projectedTimeline.length === 0) {
+      throw new Error('No projected data available');
+    }
 
-    // Calculate system metrics
-    const metrics = calculateSystemMetrics(currentData, historicalData);
+    const currentProjection = projectedTimeline[0];
+    const batteryProjection = generateBatteryProjection(projectedTimeline, predictions);
 
-    // Calculate energy flow
+    const metrics = calculateSystemMetrics(currentProjection, projectedTimeline);
     const energyFlow = calculateEnergyFlow(
-      currentData.production,
-      currentData.consumption,
-      batteryStatus.charging,
-      batteryStatus.powerFlow
+      currentProjection.production,
+      currentProjection.consumption,
+      batteryProjection.charging,
+      batteryProjection.powerFlow
     );
 
     return NextResponse.json({
-      current: currentData,
-      historical: historicalData,
-      battery: batteryStatus,
+      current: currentProjection,
+      historical: projectedTimeline,
+      battery: batteryProjection,
       metrics,
       energyFlow,
       timestamp: new Date().toISOString(),
+      mode: 'predictive',
     });
   } catch (error) {
     console.error('Error generating solar data:', error);

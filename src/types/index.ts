@@ -8,6 +8,7 @@ export interface SolarData {
   gridExport: number;      // kW - Power exported to grid
   gridImport: number;      // kW - Power imported from grid
   efficiency: number;      // % - System efficiency
+  batteryDelta?: number;   // kW - Positive = charging, Negative = discharging (optional projections)
 }
 
 export interface WeatherData {
@@ -39,6 +40,9 @@ export interface BatteryStatus {
   autonomyHours: number;   // Hours - Estimated autonomy time
   charging: boolean;       // Is battery currently charging
   powerFlow: number;       // kW - Positive = charging, Negative = discharging
+  projectedMinLevel?: number; // % - Minimum projected level (optional)
+  projectedMaxLevel?: number; // % - Maximum projected level (optional)
+  note?: string;            // Additional context (optional)
 }
 
 export interface SystemMetrics {

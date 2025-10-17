@@ -145,6 +145,9 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
           ))}
         </div>
       </div>
+      <p className="mt-5 text-xs text-gray-500">
+        Estos datos meteorológicos alimentan todas las proyecciones energéticas. No se dispone de mediciones directas de generación o estado de carga.
+      </p>
     </div>
   );
 }
