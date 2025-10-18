@@ -9,6 +9,12 @@ interface WeatherWidgetProps {
 
 export default function WeatherWidget({ weather }: WeatherWidgetProps) {
   const { temperature, solarRadiation, cloudCover, humidity, windSpeed, forecast } = weather;
+  const providerLabel = weather.provider ?? 'Fuente meteorológica';
+  const locationLabel = weather.locationName ?? 'Ubicación sin definir';
+  const lastUpdated = weather.lastUpdated ? new Date(weather.lastUpdated) : null;
+  const lastUpdatedLabel = lastUpdated
+    ? lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   // Get weather icon based on condition
   const getWeatherIcon = (condition: WeatherCondition, size: number = 24) => {
@@ -39,11 +45,21 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
   return (
     <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
       <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs uppercase tracking-wide text-sky-300/80">
+            {providerLabel}
+          </span>
+          {lastUpdatedLabel && (
+            <span className="text-[11px] text-gray-500">
+              Act. {lastUpdatedLabel}
+            </span>
+          )}
+        </div>
         <h2 className="text-2xl font-bold text-white mb-1">
-          Condiciones Climáticas
+          Clima en {locationLabel}
         </h2>
         <p className="text-sm text-gray-400">
-          Tiempo real y pronóstico
+          Condiciones actuales y pronóstico extendido
         </p>
       </div>
 
@@ -56,10 +72,15 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
               {temperature.toFixed(1)}°
             </div>
             <div className="text-sm text-gray-400 mt-1">
-              {currentCondition === 'sunny' && 'Soleado'}
-              {currentCondition === 'partly-cloudy' && 'Parcialmente Nublado'}
-              {currentCondition === 'cloudy' && 'Nublado'}
-              {currentCondition === 'rainy' && 'Lluvioso'}
+              {weather.description
+                ? weather.description.charAt(0).toUpperCase() + weather.description.slice(1)
+                : currentCondition === 'sunny'
+                ? 'Soleado'
+                : currentCondition === 'partly-cloudy'
+                ? 'Parcialmente Nublado'
+                : currentCondition === 'cloudy'
+                ? 'Nublado'
+                : 'Lluvioso'}
             </div>
           </div>
         </div>
@@ -146,7 +167,7 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
         </div>
       </div>
       <p className="mt-5 text-xs text-gray-500">
-        Estos datos meteorológicos alimentan todas las proyecciones energéticas. No se dispone de mediciones directas de generación o estado de carga.
+        Estos datos de {providerLabel} alimentan todas las proyecciones energéticas. No se dispone de mediciones directas de generación o estado de carga.
       </p>
     </div>
   );

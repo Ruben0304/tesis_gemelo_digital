@@ -6,6 +6,7 @@ import {
 } from '@/lib/mockData';
 import { calculateSystemMetrics, calculateEnergyFlow } from '@/lib/calculations';
 import { generateHourlyPredictions } from '@/lib/predictions';
+import { getSystemConfig } from '@/lib/systemConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,16 +16,24 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
-    const weatherData = generateWeatherData();
-    const predictions = generateHourlyPredictions(weatherData.forecast);
-    const projectedTimeline = buildProjectedSolarTimeline(predictions);
+    const systemConfig = await getSystemConfig();
+    const weatherData = await generateWeatherData(systemConfig.solar.capacityKw);
+    const predictions = generateHourlyPredictions(weatherData.forecast, systemConfig);
+    const projectedTimeline = buildProjectedSolarTimeline(
+      predictions,
+      systemConfig.battery.capacityKwh
+    );
 
     if (projectedTimeline.length === 0) {
       throw new Error('No projected data available');
     }
 
     const currentProjection = projectedTimeline[0];
-    const batteryProjection = generateBatteryProjection(projectedTimeline, predictions);
+    const batteryProjection = generateBatteryProjection(
+      projectedTimeline,
+      predictions,
+      systemConfig.battery.capacityKwh
+    );
 
     const metrics = calculateSystemMetrics(currentProjection, projectedTimeline);
     const energyFlow = calculateEnergyFlow(
@@ -42,6 +51,8 @@ export async function GET() {
       energyFlow,
       timestamp: new Date().toISOString(),
       mode: 'predictive',
+      weather: weatherData,
+      config: systemConfig,
     });
   } catch (error) {
     console.error('Error generating solar data:', error);

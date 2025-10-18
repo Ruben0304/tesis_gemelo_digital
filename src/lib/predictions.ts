@@ -1,9 +1,148 @@
-import { Prediction, DayForecast, Alert, BatteryStatus } from '@/types';
+import {
+  Prediction,
+  DayForecast,
+  Alert,
+  BatteryStatus,
+  SystemConfig,
+  BlackoutSchedule,
+  BlackoutImpact,
+} from '@/types';
 import { addHours, format } from 'date-fns';
 
-const SOLAR_CAPACITY = 50; // kW
-const PANEL_EFFICIENCY = 0.20; // 20% efficiency
-const PANEL_AREA = 250; // m² (50kW / 200W per m²)
+const DEFAULT_PANEL_EFFICIENCY = 0.2; // 20% efficiency
+const BLACKOUT_LOAD_FACTOR = 0.6;
+const BLACKOUT_PRODUCTION_FACTOR = 0.85;
+const BLACKOUT_CONFIDENCE_PENALTY = 12;
+
+interface SolarContext {
+  capacityKw: number;
+  panelEfficiency: number;
+  arrayAreaM2: number;
+}
+
+interface BlackoutWindow {
+  start: Date;
+  end: Date;
+  schedule: BlackoutSchedule;
+  intervalIndex: number;
+  interval: {
+    start: string;
+    end: string;
+    durationMinutes?: number;
+  };
+}
+
+function flattenBlackoutWindows(blackouts: BlackoutSchedule[]): BlackoutWindow[] {
+  const windows: BlackoutWindow[] = [];
+
+  blackouts.forEach((schedule) => {
+    schedule.intervals.forEach((interval, index) => {
+      const start = new Date(interval.start);
+      const end = new Date(interval.end);
+      if (Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) && start < end) {
+        windows.push({
+          start,
+          end,
+          schedule,
+          intervalIndex: index,
+          interval,
+        });
+      }
+    });
+  });
+
+  return windows.sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+function findBlackoutWindow(timestamp: Date, windows: BlackoutWindow[]): BlackoutWindow | undefined {
+  return windows.find(
+    (window) => timestamp >= window.start && timestamp < window.end
+  );
+}
+
+function resolveBlackoutIntensity(interval: BlackoutWindow): 'moderado' | 'severo' {
+  const duration = interval.interval.durationMinutes;
+  if (duration !== undefined) {
+    return duration >= 180 ? 'severo' : 'moderado';
+  }
+  const diffHours = (interval.end.getTime() - interval.start.getTime()) / (1000 * 60 * 60);
+  return diffHours >= 3 ? 'severo' : 'moderado';
+}
+
+function describeBlackoutWindow(window: BlackoutWindow): string | undefined {
+  const base = window.schedule.notes;
+  if (base && base.trim().length > 0) {
+    return base.trim();
+  }
+  const dayLabel = format(window.start, "EEEE HH:mm");
+  const endLabel = format(window.end, "HH:mm");
+  return `Apagón programado ${dayLabel} - ${endLabel}`;
+}
+
+export function applyBlackoutAdjustments(
+  predictions: Prediction[],
+  blackouts: BlackoutSchedule[]
+): Prediction[] {
+  if (blackouts.length === 0) {
+    return predictions;
+  }
+
+  const windows = flattenBlackoutWindows(blackouts);
+  if (windows.length === 0) {
+    return predictions;
+  }
+
+  return predictions.map((prediction) => {
+    const timestamp = new Date(prediction.timestamp);
+    const blackoutWindow = findBlackoutWindow(timestamp, windows);
+    if (!blackoutWindow) {
+      return prediction;
+    }
+
+    const loadFactor = BLACKOUT_LOAD_FACTOR;
+    const productionFactor = BLACKOUT_PRODUCTION_FACTOR;
+
+    const adjustedProduction = Math.max(0, Math.round(prediction.expectedProduction * productionFactor * 100) / 100);
+    const adjustedConsumption = Math.max(0, Math.round(prediction.expectedConsumption * loadFactor * 100) / 100);
+
+    const blackoutImpact: BlackoutImpact = {
+      intervalStart: blackoutWindow.interval.start,
+      intervalEnd: blackoutWindow.interval.end,
+      loadFactor,
+      productionFactor,
+      intensity: resolveBlackoutIntensity(blackoutWindow),
+      note: describeBlackoutWindow(blackoutWindow),
+    };
+
+    return {
+      ...prediction,
+      expectedProduction: adjustedProduction,
+      expectedConsumption: adjustedConsumption,
+      confidence: Math.max(40, prediction.confidence - BLACKOUT_CONFIDENCE_PENALTY),
+      blackoutImpact,
+    };
+  });
+}
+
+function resolveSolarContext(config: SystemConfig): SolarContext {
+  const capacityKw = config.solar.capacityKw;
+  const panelEfficiency =
+    config.solar.panelEfficiencyPercent && config.solar.panelEfficiencyPercent > 0
+      ? config.solar.panelEfficiencyPercent / 100
+      : DEFAULT_PANEL_EFFICIENCY;
+
+  const panelArea = config.solar.panelAreaM2 && config.solar.panelAreaM2 > 0
+    ? config.solar.panelAreaM2
+    : (config.solar.panelRatedKw / panelEfficiency);
+
+  const arrayAreaM2 = panelArea * config.solar.panelCount;
+
+  return {
+    capacityKw,
+    panelEfficiency,
+    arrayAreaM2,
+  };
+}
 
 /**
  * Predict solar production based on weather forecast
@@ -13,10 +152,11 @@ export function predictProduction(
   solarRadiation: number,   // W/m²
   temperature: number,      // °C
   cloudCover: number,       // %
-  hour: number             // Hour of day
+  hour: number,             // Hour of day
+  context: SolarContext
 ): number {
   // Base production from solar radiation
-  let production = (solarRadiation * PANEL_AREA * PANEL_EFFICIENCY) / 1000; // kW
+  let production = (solarRadiation * context.arrayAreaM2 * context.panelEfficiency) / 1000; // kW
 
   // Temperature correction: panels lose efficiency when hot
   // Reference temp: 25°C, coefficient: -0.4% per °C
@@ -34,7 +174,7 @@ export function predictProduction(
   production *= hourFactor;
 
   // Cap at maximum capacity
-  production = Math.min(production, SOLAR_CAPACITY);
+  production = Math.min(production, context.capacityKw);
 
   // No production at night
   if (hour < 6 || hour > 20) {
@@ -63,17 +203,24 @@ function getHourEfficiencyFactor(hour: number): number {
  * Generate hourly predictions for next 24 hours
  */
 export function generateHourlyPredictions(
-  weatherForecast: DayForecast[]
+  weatherForecast: DayForecast[],
+  config: SystemConfig
 ): Prediction[] {
   const predictions: Prediction[] = [];
   const now = new Date();
+  const context = resolveSolarContext(config);
+  const fallbackForecast = weatherForecast[0] ?? weatherForecast[weatherForecast.length - 1];
 
   for (let i = 0; i < 24; i++) {
     const timestamp = addHours(now, i);
     const hour = timestamp.getHours();
 
     // Use today's or tomorrow's forecast
-    const forecast = i < 12 ? weatherForecast[0] : weatherForecast[1];
+    const forecastCandidate = i < 12 ? weatherForecast[0] : weatherForecast[1];
+    const forecast = forecastCandidate ?? fallbackForecast;
+    if (!forecast) {
+      continue;
+    }
 
     // Estimate hourly conditions
     const solarRadiation = estimateHourlySolarRadiation(hour, forecast.solarRadiation, forecast.cloudCover);
@@ -83,7 +230,8 @@ export function generateHourlyPredictions(
       solarRadiation,
       temperature,
       forecast.cloudCover,
-      hour
+      hour,
+      context
     );
 
     // Predict consumption based on typical patterns
@@ -181,11 +329,13 @@ function calculatePredictionConfidence(hoursAhead: number, cloudCover: number): 
 export function generateAlerts(
   predictions: Prediction[],
   batteryStatus: BatteryStatus,
-  weatherForecast: DayForecast[]
+  weatherForecast: DayForecast[],
+  blackouts: BlackoutSchedule[] = []
 ): Alert[] {
   const alerts: Alert[] = [];
   const startingLevel = batteryStatus.chargeLevel;
   const projectedMin = batteryStatus.projectedMinLevel ?? startingLevel;
+  const blackoutWindows = flattenBlackoutWindows(blackouts);
 
   // Check for low battery
   if (projectedMin < 20) {
@@ -250,6 +400,20 @@ export function generateAlerts(
     });
   }
 
+  const now = new Date();
+  const upcomingBlackout = blackoutWindows.find((window) => window.start > now);
+  if (upcomingBlackout) {
+    const startLabel = format(upcomingBlackout.start, "HH:mm 'h'");
+    const endLabel = format(upcomingBlackout.end, "HH:mm 'h'");
+    alerts.push({
+      id: `planned-blackout-${upcomingBlackout.start.getTime()}`,
+      type: upcomingBlackout.interval.durationMinutes && upcomingBlackout.interval.durationMinutes > 180 ? 'critical' : 'warning',
+      title: 'Apagón Programado',
+      message: `Se ha planificado una interrupción entre ${startLabel} y ${endLabel}. Prepárese con antelación para cubrir la demanda prioritaria.`,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   return alerts;
 }
 
@@ -258,8 +422,11 @@ export function generateAlerts(
  */
 export function generateRecommendations(
   predictions: Prediction[],
-  batteryStatus: BatteryStatus
+  batteryStatus: BatteryStatus,
+  config: SystemConfig,
+  blackouts: BlackoutSchedule[] = []
 ): string[] {
+  const solarCapacity = Math.max(config.solar.capacityKw, 0.0001);
   const recommendations: string[] = [];
   const currentPrediction = predictions[0];
   const currentProduction = currentPrediction?.expectedProduction ?? 0;
@@ -293,14 +460,28 @@ export function generateRecommendations(
   }
 
   // Excellent conditions
-  if (currentProduction > SOLAR_CAPACITY * 0.8) {
-    recommendations.push(`La proyección indica operación cercana al ${((currentProduction / SOLAR_CAPACITY) * 100).toFixed(0)}% de la capacidad instalada. Aproveche para tareas que requieran potencia.`);
+  if (currentProduction > solarCapacity * 0.8) {
+    recommendations.push(`La proyección indica operación cercana al ${((currentProduction / solarCapacity) * 100).toFixed(0)}% de la capacidad instalada. Aproveche para tareas que requieran potencia.`);
   }
 
   // Poor production day
   const todayPrediction = predictions[0];
-  if (todayPrediction && todayPrediction.expectedProduction < SOLAR_CAPACITY * 0.3) {
+  if (todayPrediction && todayPrediction.expectedProduction < solarCapacity * 0.3) {
     recommendations.push('Día de baja producción estimada. Priorice consumos esenciales y considere apoyo de la red para cargas críticas.');
+  }
+
+  const blackoutWindows = flattenBlackoutWindows(blackouts);
+  const blackoutNow = currentPrediction?.blackoutImpact;
+  if (blackoutNow) {
+    recommendations.push('Durante el apagón programado actual, reserve energía para cargas imprescindibles y supervise el nivel de batería cada hora.');
+  }
+
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const upcoming = blackoutWindows.find((window) => window.start >= midnight);
+  if (upcoming && !blackoutNow) {
+    const startInfo = format(upcoming.start, "EEEE HH:mm");
+    recommendations.push(`Planifique el consumo crítico antes de ${startInfo}. Mantenga la batería por encima del 60% previo al apagón.`);
   }
 
   return recommendations;

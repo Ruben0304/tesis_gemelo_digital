@@ -1,5 +1,55 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Dashboard from './components/Dashboard';
+import AuthGate from './components/AuthGate';
+import type { User } from '@/types';
+import { Loader2 } from 'lucide-react';
+
+const SESSION_KEY = 'gd_auth_user';
 
 export default function Home() {
-  return <Dashboard />;
+  const [user, setUser] = useState<User | null>(null);
+  const [bootstrapped, setBootstrapped] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(SESSION_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as User;
+        setUser(parsed);
+      }
+    } catch (error) {
+      console.warn('No se pudo leer la sesión almacenada.', error);
+    } finally {
+      setBootstrapped(true);
+    }
+  }, []);
+
+  const handleAuthenticated = (authenticated: User) => {
+    setUser(authenticated);
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(authenticated));
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem(SESSION_KEY);
+    setUser(null);
+  };
+
+  if (!bootstrapped) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
+        <div className="text-center text-gray-300">
+          <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-4" />
+          Preparando interfaz…
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthGate onAuthenticated={handleAuthenticated} />;
+  }
+
+  return <Dashboard user={user} onLogout={handleLogout} />;
 }

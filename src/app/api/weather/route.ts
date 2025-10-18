@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateWeatherData } from '@/lib/mockData';
+import { getSystemConfig } from '@/lib/systemConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,11 +10,13 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
-    const weatherData = generateWeatherData();
+    const systemConfig = await getSystemConfig();
+    const weatherData = await generateWeatherData(systemConfig.solar.capacityKw);
 
     return NextResponse.json({
       ...weatherData,
       timestamp: new Date().toISOString(),
+      config: systemConfig,
     });
   } catch (error) {
     console.error('Error generating weather data:', error);

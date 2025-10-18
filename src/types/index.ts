@@ -18,6 +18,10 @@ export interface WeatherData {
   humidity: number;        // % - Relative humidity
   windSpeed: number;       // km/h - Wind speed
   forecast: DayForecast[]; // 7-day forecast
+  provider?: string;       // Data provider description
+  locationName?: string;   // Friendly location name
+  lastUpdated?: string;    // ISO string for data timestamp
+  description?: string;    // Textual weather summary
 }
 
 export interface DayForecast {
@@ -69,6 +73,7 @@ export interface Prediction {
   expectedProduction: number; // kWh
   expectedConsumption: number; // kWh
   confidence: number;        // % - Prediction confidence
+  blackoutImpact?: BlackoutImpact;
 }
 
 export interface Alert {
@@ -80,12 +85,101 @@ export interface Alert {
 }
 
 // Configuration for the microgrid system
+export interface SolarPanelConfig {
+  _id?: string;
+  name: string;
+  manufacturer?: string;
+  model?: string;
+  ratedPowerKw: number;         // kW por panel
+  quantity: number;             // Número total de paneles instalados
+  strings: number;              // Cantidad de strings activos
+  efficiencyPercent?: number;   // % de eficiencia nominal
+  areaM2?: number;              // Área por panel en m²
+  tiltDegrees?: number;         // Ángulo de inclinación
+  orientation?: string;         // Orientación cardinal
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BatteryConfig {
+  _id?: string;
+  name: string;
+  manufacturer?: string;
+  model?: string;
+  capacityKwh: number;          // kWh por unidad
+  quantity: number;             // Número de módulos instalados
+  maxDepthOfDischargePercent?: number; // % DoD permitido
+  chargeRateKw?: number;        // kW de carga máxima
+  dischargeRateKw?: number;     // kW de descarga máxima
+  efficiencyPercent?: number;   // % de eficiencia redox/conversión
+  chemistry?: string;           // Química (LiFePO4, etc.)
+  nominalVoltage?: number;      // Voltaje nominal del banco
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface SystemConfig {
-  solarCapacity: number;     // kW - Total installed solar capacity
-  batteryCapacity: number;   // kWh - Total battery storage
   location: {
     lat: number;
     lon: number;
     name: string;
   };
+  solar: {
+    capacityKw: number;          // kW totales instalados
+    panelRatedKw: number;        // kW por panel
+    panelCount: number;          // Paneles activos
+    strings?: number;            // Strings activos
+    panelEfficiencyPercent?: number;
+    panelAreaM2?: number;
+    spec?: SolarPanelConfig | null;
+  };
+  battery: {
+    capacityKwh: number;         // kWh totales instalados
+    moduleCapacityKwh?: number;  // kWh por módulo
+    moduleCount?: number;        // Módulos activos
+    maxDepthOfDischargePercent?: number;
+    chargeRateKw?: number;
+    dischargeRateKw?: number;
+    efficiencyPercent?: number;
+    spec?: BatteryConfig | null;
+  };
+}
+
+export type UserRole = 'admin' | 'user';
+
+export interface User {
+  _id?: string;
+  email: string;
+  name?: string;
+  role: UserRole;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BlackoutInterval {
+  start: string;
+  end: string;
+  durationMinutes?: number;
+}
+
+export interface BlackoutSchedule {
+  _id?: string;
+  date: string; // ISO date (00:00:00 local)
+  intervals: BlackoutInterval[];
+  province?: string;
+  municipality?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BlackoutImpact {
+  intervalStart: string;
+  intervalEnd: string;
+  loadFactor: number;
+  productionFactor: number;
+  intensity: 'moderado' | 'severo';
+  note?: string;
 }

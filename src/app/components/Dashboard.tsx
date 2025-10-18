@@ -1,22 +1,40 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import MetricsCards from './MetricsCards';
 import SolarProductionChart from './SolarProductionChart';
 import BatteryStatus from './BatteryStatus';
 import WeatherWidget from './WeatherWidget';
 import EnergyFlowDiagram from './EnergyFlowDiagram';
 import PredictionsPanel from './PredictionsPanel';
-import { SolarData, BatteryStatus as BatteryStatusType, SystemMetrics, EnergyFlow, WeatherData, Prediction, Alert } from '@/types';
+import {
+  SolarData,
+  BatteryStatus as BatteryStatusType,
+  SystemMetrics,
+  EnergyFlow,
+  WeatherData,
+  Prediction,
+  Alert,
+  SystemConfig,
+  User,
+  BlackoutSchedule,
+} from '@/types';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
-export default function Dashboard() {
+interface DashboardProps {
+  user: User;
+  onLogout: () => void;
+}
+
+export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [solarData, setSolarData] = useState<{
     current: SolarData;
     historical: SolarData[];
     battery: BatteryStatusType;
     metrics: SystemMetrics;
     energyFlow: EnergyFlow;
+    config: SystemConfig;
   } | null>(null);
 
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -25,6 +43,11 @@ export default function Dashboard() {
     predictions: Prediction[];
     alerts: Alert[];
     recommendations: string[];
+    battery: BatteryStatusType;
+    timeline: SolarData[];
+    weather?: WeatherData;
+    config: SystemConfig;
+    blackouts?: BlackoutSchedule[];
   } | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -87,6 +110,21 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              <Link
+                href="/configuracion"
+                className="hidden sm:inline-flex items-center rounded-lg border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-400/20 transition-colors"
+              >
+                Configurar equipos
+              </Link>
+              <div className="hidden sm:flex flex-col items-end">
+                <p className="text-xs text-gray-500">Operador</p>
+                <p className="text-sm font-semibold text-gray-200">
+                  {user.name ?? user.email}
+                </p>
+                <p className="text-[10px] uppercase text-gray-500 tracking-wide">
+                  Rol: {user.role}
+                </p>
+              </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500">Última actualización</p>
                 <p className="text-sm font-semibold text-gray-300">
@@ -100,10 +138,25 @@ export default function Dashboard() {
               >
                 <RefreshCw className="w-5 h-5 text-green-400 group-hover:rotate-180 transition-transform duration-500" />
               </button>
+              <button
+                onClick={onLogout}
+                className="rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/20 transition-colors"
+              >
+                Cerrar sesión
+              </button>
             </div>
           </div>
         </div>
       </header>
+
+      <div className="sm:hidden px-6 pt-4">
+        <p className="text-sm font-semibold text-white">
+          {user.name ?? user.email}
+        </p>
+        <p className="text-[11px] uppercase text-gray-500 tracking-wide">
+          Rol: {user.role}
+        </p>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-[1800px] mx-auto px-6 py-8">
@@ -144,6 +197,10 @@ export default function Dashboard() {
             predictions={predictionsData.predictions}
             alerts={predictionsData.alerts}
             recommendations={predictionsData.recommendations}
+            weather={weatherData}
+            batteryProjection={predictionsData.battery}
+            config={solarData.config}
+            blackouts={predictionsData.blackouts}
           />
         </div>
 
@@ -152,11 +209,15 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
             <div>
               <p className="text-xs text-gray-500 mb-1">Capacidad Instalada</p>
-              <p className="text-lg font-bold text-white">50 kW</p>
+              <p className="text-lg font-bold text-white">
+                {solarData.config.solar.capacityKw.toFixed(1)} kW
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Almacenamiento</p>
-              <p className="text-lg font-bold text-white">100 kWh</p>
+              <p className="text-lg font-bold text-white">
+                {solarData.config.battery.capacityKwh.toFixed(1)} kWh
+              </p>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Producción estimada (24h)</p>
