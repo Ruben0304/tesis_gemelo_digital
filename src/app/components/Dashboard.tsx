@@ -172,13 +172,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             {/* Production Chart */}
             <SolarProductionChart data={solarData.historical} />
 
-            {/* Energy Flow Diagram */}
+            {/* Energy Flow Diagram
             <EnergyFlowDiagram
               energyFlow={solarData.energyFlow}
               production={solarData.current.production}
               consumption={solarData.current.consumption}
               batteryLevel={solarData.battery.chargeLevel}
-            />
+            /> */}
           </div>
 
           {/* Right Column - 1 col */}
