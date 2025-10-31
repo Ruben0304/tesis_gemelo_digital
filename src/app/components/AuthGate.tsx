@@ -1,7 +1,15 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { ArrowPathIcon, SparklesIcon, UserPlusIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowPathIcon,
+  SparklesIcon,
+  UserPlusIcon,
+  ArrowRightOnRectangleIcon,
+  ShieldCheckIcon,
+  BoltIcon,
+  ChartPieIcon,
+} from '@heroicons/react/24/outline';
 import type { User } from '@/types';
 
 type AuthMode = 'login' | 'register';
@@ -27,6 +35,24 @@ const DEFAULT_DEMO: {
   password: 'Energia2025!',
   role: 'user',
 };
+
+const FEATURE_CARDS = [
+  {
+    icon: ShieldCheckIcon,
+    title: 'Acceso cifrado',
+    description: 'Roles separados y sesiones protegidas para el equipo operativo.',
+  },
+  {
+    icon: BoltIcon,
+    title: 'Monitoreo solar',
+    description: 'Sincronización continua con la generación fotovoltaica proyectada.',
+  },
+  {
+    icon: ChartPieIcon,
+    title: 'Insights accionables',
+    description: 'Predicciones inteligentes y alarmas de energía en un mismo panel.',
+  },
+];
 
 export default function AuthGate({ onAuthenticated }: AuthGateProps) {
   const [mode, setMode] = useState<AuthMode>('login');
@@ -69,9 +95,17 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     });
   }, []);
 
+  const handleModeChange = useCallback(
+    (nextMode: AuthMode) => {
+      if (nextMode === mode) return;
+      setMode(nextMode);
+      setMessage(null);
+    },
+    [mode]
+  );
+
   const toggleMode = () => {
-    setMode(isRegister ? 'login' : 'register');
-    setMessage(null);
+    handleModeChange(isRegister ? 'login' : 'register');
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -134,143 +168,250 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     }
   };
 
+  const modeIndex = isRegister ? 1 : 0;
+  const modeHeadline = isRegister ? 'Registrar nuevo operador' : 'Bienvenido de nuevo';
+  const modeSummary = isRegister
+    ? 'Habilite credenciales para que otro miembro administre la microrred solar.'
+    : 'Recupere el panel del gemelo digital y continúe monitoreando la energía.';
+  const oppositePrompt = isRegister ? '¿Ya forma parte del equipo?' : '¿Primera vez en la plataforma?';
+  const oppositeAction = isRegister ? 'Acceder con mi cuenta' : 'Crear acceso';
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
-      <div className="max-w-md w-full bg-gray-900/60 border border-gray-800 rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
-        <div className="flex items-center gap-2 mb-6 text-green-400">
-          <SparklesIcon className="w-6 h-6" />
-          <h1 className="text-xl font-semibold tracking-wide uppercase">Gemelo Digital • Acceso</h1>
-        </div>
+    <div className="relative min-h-screen overflow-hidden bg-slate-50">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-slate-200/60 blur-[110px]" />
+        <div className="absolute bottom-0 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full bg-sky-100/70 blur-[120px]" />
+        <div className="absolute -bottom-40 -right-28 h-80 w-80 rounded-full bg-blue-100/60 blur-[120px]" />
+      </div>
 
-        <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
-        <p className="text-sm text-gray-400 mb-6">
-          {isRegister
-            ? 'Registre un operador para gestionar las proyecciones y configurar equipos.'
-            : 'Ingrese con sus credenciales o utilice el relleno rápido para la demo.'}
-        </p>
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-16">
+        <div className="grid w-full max-w-6xl overflow-hidden rounded-[2.25rem] border border-slate-100/80 bg-white/70 shadow-[0_45px_95px_-45px_rgba(15,23,42,0.35)] backdrop-blur-[20px] md:grid-cols-2">
+          <aside className="relative hidden md:flex md:flex-col md:justify-between">
+            <img
+              src="/img/image.png"
+              alt="Microrred solar"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-slate-950/70" />
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          {isRegister && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="name">
-                Nombre completo (opcional)
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-2 text-white shadow-inner focus:border-green-400 focus:outline-none"
-                placeholder="Ej. Operador turno mañana"
-                autoComplete="name"
-              />
+            <div className="relative z-10 flex flex-col gap-8 p-12 text-white">
+              <div className="space-y-3">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-blue-200/90">
+                  <SparklesIcon className="h-4 w-4 text-blue-200" />
+                  Microrred Solar
+                </span>
+                <h1 className="text-[32px] font-semibold leading-tight text-white">
+                  Gemelo Digital Fotovoltaico
+                </h1>
+                <p className="text-sm text-white/70 leading-relaxed">
+                  Supervisión proactiva del sistema fotovoltaico, automatización de alertas y análisis predictivo en una interfaz limpia.
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {FEATURE_CARDS.map(({ icon: Icon, title: featureTitle, description }) => (
+                  <div
+                    key={featureTitle}
+                    className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-inner shadow-black/10 backdrop-blur"
+                  >
+                    <div className="rounded-xl bg-white/10 p-2">
+                      <Icon className="h-5 w-5 text-blue-100" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{featureTitle}</p>
+                      <p className="text-xs text-blue-100/80">{description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="email">
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-2 text-white shadow-inner focus:border-green-400 focus:outline-none"
-              placeholder="operador@microrred.cu"
-              autoComplete="email"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="password">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-2 text-white shadow-inner focus:border-green-400 focus:outline-none"
-              placeholder="Mínimo 8 caracteres"
-              autoComplete={isRegister ? 'new-password' : 'current-password'}
-              minLength={8}
-            />
-          </div>
-
-          {isRegister && (
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1" htmlFor="role">
-                Rol
-              </label>
-              <select
-                id="role"
-                value={role}
-                onChange={(event) => setRole(event.target.value as 'user' | 'admin')}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900/60 px-3 py-2 text-white shadow-inner focus:border-green-400 focus:outline-none"
-              >
-                <option value="user">Operador (usuario)</option>
-                <option value="admin">Administrador</option>
-              </select>
-              <p className="mt-1 text-xs text-gray-500">
-                El rol controla acceso a configuraciones avanzadas (futuro).
+            <div className="relative z-10 border-t border-white/10 px-12 py-8 text-white/80">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-blue-200/70">
+                Modo actual
               </p>
+              <p className="mt-3 text-lg font-semibold text-white">{modeHeadline}</p>
+              <p className="text-sm text-blue-100/80">{modeSummary}</p>
             </div>
-          )}
+          </aside>
 
-          {message && (
-            <div
-              className={`rounded-lg border px-3 py-2 text-sm ${
-                message.type === 'error'
-                  ? 'border-red-500/30 bg-red-500/10 text-red-300'
-                  : 'border-green-500/30 bg-green-500/10 text-green-300'
-              }`}
-            >
-              {message.text}
+          <section className="relative flex flex-col justify-between p-8 sm:p-12">
+            <div className="mb-10">
+              <div className="relative">
+                <div className="flex rounded-full bg-slate-200/60 p-1 text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+                  <span
+                    className="absolute inset-y-1 left-1 w-1/2 rounded-full bg-white shadow-lg shadow-slate-300/70 transition-transform duration-500 ease-out"
+                    style={{ transform: `translateX(${modeIndex * 100}%)` }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange('login')}
+                    className={`relative z-10 flex-1 rounded-full px-4 py-2 transition-colors ${
+                      !isRegister ? 'text-slate-900' : 'hover:text-slate-700'
+                    }`}
+                  >
+                    Acceso
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange('register')}
+                    className={`relative z-10 flex-1 rounded-full px-4 py-2 transition-colors ${
+                      isRegister ? 'text-slate-900' : 'hover:text-slate-700'
+                    }`}
+                  >
+                    Registro
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-500">
+                  Portal Operativo
+                </p>
+                <h2 className="text-3xl font-semibold text-slate-900">{title}</h2>
+                <p className="text-sm text-slate-500">
+                  {isRegister
+                    ? 'Invite a un nuevo operador para planificar mantenimientos, supervisar baterías y responder a apagones.'
+                    : 'Ingrese con sus credenciales o utilice datos demo para explorar el gemelo digital.'}
+                </p>
+              </div>
             </div>
-          )}
 
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-500 px-4 py-2 font-semibold text-gray-950 transition hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-green-500/60"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                Procesando…
-              </>
-            ) : isRegister ? (
-              <>
-                <UserPlusIcon className="h-4 w-4" />
-                {actionLabel}
-              </>
-            ) : (
-              <>
-                <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                {actionLabel}
-              </>
-            )}
-          </button>
-        </form>
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <div className="grid gap-5">
+                {isRegister && (
+                  <div
+                    className="transition-all duration-500 ease-out"
+                    style={{ transform: `translateY(${isRegister ? '0%' : '-8%'})`, opacity: isRegister ? 1 : 0 }}
+                  >
+                    <label className="flex items-center justify-between text-sm font-medium text-slate-700" htmlFor="name">
+                      Nombre completo (opcional)
+                      <span className="text-[10px] uppercase tracking-[0.3em] text-sky-500">Equipo</span>
+                    </label>
+                    <input
+                      id="name"
+                      type="text"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-slate-900 shadow-inner shadow-white/40 transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200/50 focus:outline-none"
+                      placeholder="Ej. Operador turno mañana"
+                      autoComplete="name"
+                    />
+                  </div>
+                )}
 
-        <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <button
-            onClick={autofill}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-200 hover:bg-blue-500/20 transition-colors"
-            type="button"
-          >
-            Rellenar datos demo
-          </button>
-          <button
-            onClick={toggleMode}
-            className="text-sm text-gray-400 hover:text-green-300 transition"
-            type="button"
-          >
-            {isRegister ? '¿Ya tiene cuenta? Inicie sesión' : '¿Sin cuenta? Registre un operador'}
-          </button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700" htmlFor="email">
+                    Correo electrónico
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-slate-900 shadow-inner shadow-white/40 transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200/50 focus:outline-none"
+                    placeholder="operador@microrred.cu"
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700" htmlFor="password">
+                    Contraseña
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-slate-900 shadow-inner shadow-white/40 transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200/50 focus:outline-none"
+                    placeholder="Mínimo 8 caracteres"
+                    autoComplete={isRegister ? 'new-password' : 'current-password'}
+                    minLength={8}
+                  />
+                </div>
+
+                {isRegister && (
+                  <div
+                    className="transition-all duration-500 ease-out"
+                    style={{ transform: `translateY(${isRegister ? '0%' : '-8%'})`, opacity: isRegister ? 1 : 0 }}
+                  >
+                    <label className="block text-sm font-medium text-slate-700" htmlFor="role">
+                      Rol
+                    </label>
+                    <select
+                      id="role"
+                      value={role}
+                      onChange={(event) => setRole(event.target.value as 'user' | 'admin')}
+                      className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-slate-900 shadow-inner shadow-white/40 transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200/50 focus:outline-none"
+                    >
+                      <option value="user">Operador (usuario)</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Define permisos futuros sobre configuraciones y automatizaciones.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {message && (
+                <div
+                  className={`rounded-2xl border px-4 py-3 text-sm shadow-inner transition ${
+                    message.type === 'error'
+                      ? 'border-red-300/60 bg-red-50 text-red-600'
+                      : 'border-sky-300/60 bg-sky-50 text-sky-600'
+                  }`}
+                >
+                  {message.text}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-blue-600 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-blue-400/30 transition hover:bg-blue-500 hover:shadow-blue-400/50 disabled:cursor-not-allowed disabled:bg-blue-400 disabled:shadow-none"
+                disabled={loading}
+              >
+                <span className="absolute inset-0 -translate-x-full bg-white/30 mix-blend-overlay transition-transform duration-700 ease-out group-hover:translate-x-0" />
+                {loading ? (
+                  <>
+                    <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    Procesando…
+                  </>
+                ) : isRegister ? (
+                  <>
+                    <UserPlusIcon className="h-5 w-5" />
+                    {actionLabel}
+                  </>
+                ) : (
+                  <>
+                    <ArrowRightOnRectangleIcon className="h-5 w-5" />
+                    {actionLabel}
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                onClick={autofill}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-200/80 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 shadow-sm transition hover:bg-sky-100 hover:text-sky-800"
+                type="button"
+              >
+                Rellenar datos demo
+              </button>
+              <button
+                onClick={toggleMode}
+                className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
+                type="button"
+              >
+                <span className="mr-1 text-xs uppercase tracking-[0.3em] text-slate-400">{oppositePrompt}</span>
+                {oppositeAction}
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     </div>
