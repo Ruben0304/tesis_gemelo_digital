@@ -7,6 +7,8 @@ import MetricsCards from './MetricsCards';
 import SolarProductionChart from './SolarProductionChart';
 import BatteryStatus from './BatteryStatus';
 import WeatherWidget from './WeatherWidget';
+import WeatherToday from './WeatherToday';
+import WeatherForecast from './WeatherForecast';
 import PredictionsPanel from './PredictionsPanel';
 import FlujoEnergia from './FlujoEnergia';
 import DevicesView from './DevicesView';
@@ -182,9 +184,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 Gemelo Digital - Microrred Solar
               </h1>
-              <p className="text-xs sm:text-sm text-gray-600">
-                Monitoreo en tiempo real con datos de Open-Meteo
-              </p>
+             
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               <Link
@@ -208,10 +208,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               </button>
             </div>
           </div>
-          <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+          {/* <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
             <span>{user.name ?? user.email} • {user.role}</span>
             <span>Actualizado: {lastUpdate.toLocaleTimeString('es-ES')}</span>
-          </div>
+          </div> */}
         </div>
       </header>
 
@@ -219,15 +219,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-32">
         {activeSection === 'overview' && (
           <>
-            <div className="mb-6 sm:mb-8">
-              <MetricsCards metrics={solarData.metrics} />
-            </div>
-
-            <div className="mb-6 sm:mb-8">
-              <FlujoEnergia
-                values={flujoValores}
-                batteryLevel={solarData.battery.chargeLevel}
-              />
+            {/* Flujo de Energía y Resumen del Clima */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
+              <div className="lg:col-span-1">
+                <FlujoEnergia
+                  values={flujoValores}
+                  batteryLevel={solarData.battery.chargeLevel}
+                />
+              </div>
+              <div className="lg:col-span-1 flex flex-col gap-6">
+                <div className="flex-1">
+                  <WeatherToday weather={weatherData} />
+                </div>
+                <div className="flex-1">
+                  <WeatherForecast weather={weatherData} />
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
