@@ -10,6 +10,7 @@ import PredictionsPanel from './PredictionsPanel';
 import FlujoEnergia from './FlujoEnergia';
 import DevicesView from './DevicesView';
 import FloatingBottomNav from './FloatingBottomNav';
+import SolarStatsView from './SolarStatsView';
 import {
   SolarData,
   BatteryStatus as BatteryStatusType,
@@ -258,15 +259,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         )}
 
         {activeSection === 'stats' && (
-          <section className="flex min-h-[60vh] items-center justify-center">
-            <div className="max-w-md rounded-3xl border border-white/40 bg-white/70 p-8 text-center backdrop-blur-xl shadow-[0_30px_70px_-50px_rgba(15,23,42,0.55)]">
-              <h2 className="text-2xl font-semibold text-slate-900">Estadísticas en preparación</h2>
-              <p className="mt-3 text-sm text-slate-600">
-                Estamos construyendo un tablero dedicado para tendencias históricas y comparativas.
-                Muy pronto podrá analizar el rendimiento detallado de la microrred.
-              </p>
-            </div>
-          </section>
+          <SolarStatsView
+            timeline={solarData.historical}
+            weather={weatherData}
+            config={solarData.config}
+          />
         )}
 
         {activeSection === 'devices' && (

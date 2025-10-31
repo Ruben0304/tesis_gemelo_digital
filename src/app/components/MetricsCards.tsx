@@ -1,4 +1,4 @@
-import { BoltIcon, ArrowTrendingUpIcon, ChartBarIcon, LeafIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { BoltIcon, ArrowTrendingUpIcon, ChartBarIcon, SparklesIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { SystemMetrics } from '@/types';
 
 interface MetricsCardsProps {
@@ -42,7 +42,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
       subtitle: 'Comparada con el ideal',
       value: metrics.systemEfficiency,
       unit: '%',
-      icon: LeafIcon,
+      icon: SparklesIcon,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-400/10',
       borderColor: 'border-emerald-400/20',

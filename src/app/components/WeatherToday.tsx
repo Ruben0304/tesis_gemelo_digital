@@ -1,5 +1,5 @@
 import { WeatherData } from '@/types';
-import { Droplets, Wind, Gauge, Info, X } from 'lucide-react';
+import { Cloud, Droplets, Wind, Gauge, Info, X } from 'lucide-react';
 import { useState } from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
