@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { ArrowPathIcon, SparklesIcon, UserPlusIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
-import { Loader2, Sparkles, UserPlus, LogIn } from 'lucide-react';
 
 type AuthMode = 'login' | 'register';
 
@@ -138,7 +138,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
       <div className="max-w-md w-full bg-gray-900/60 border border-gray-800 rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-6 text-green-400">
-          <Sparkles className="w-6 h-6" />
+          <SparklesIcon className="w-6 h-6" />
           <h1 className="text-xl font-semibold tracking-wide uppercase">Gemelo Digital • Acceso</h1>
         </div>
 
@@ -239,17 +239,17 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
           >
             {loading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
                 Procesando…
               </>
             ) : isRegister ? (
               <>
-                <UserPlus className="h-4 w-4" />
+                <UserPlusIcon className="h-4 w-4" />
                 {actionLabel}
               </>
             ) : (
               <>
-                <LogIn className="h-4 w-4" />
+                <ArrowRightOnRectangleIcon className="h-4 w-4" />
                 {actionLabel}
               </>
             )}

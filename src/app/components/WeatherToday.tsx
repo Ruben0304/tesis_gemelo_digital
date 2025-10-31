@@ -1,23 +1,66 @@
 import { WeatherData } from '@/types';
-import { Cloud, Droplets, Wind, Gauge, Sun, CloudSun, CloudRain, Info, X } from 'lucide-react';
+import { Droplets, Wind, Gauge, Info, X } from 'lucide-react';
 import { useState } from 'react';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 interface WeatherTodayProps {
   weather: WeatherData;
 }
 
+// Tipos de animaciones disponibles
+type LottieAnimationType = 'sunny' | 'partly-cloudy' | 'cloudy' | 'rainy' | 'night';
+
 export default function WeatherToday({ weather }: WeatherTodayProps) {
   const [showModal, setShowModal] = useState(false);
+  const [showSandbox, setShowSandbox] = useState(false);
   const { temperature, solarRadiation, cloudCover, humidity, windSpeed } = weather;
   const locationLabel = weather.locationName ?? 'Ubicación';
 
-  // Determinar ícono del clima según nubosidad
-  const getWeatherIcon = () => {
-    if (cloudCover < 20) return <Sun className="w-16 h-16 text-yellow-400" />;
-    if (cloudCover < 50) return <CloudSun className="w-16 h-16 text-yellow-300" />;
-    if (cloudCover < 80) return <Cloud className="w-16 h-16 text-gray-400" />;
-    return <CloudRain className="w-16 h-16 text-blue-400" />;
+  // Determinar si es de noche (basado en hora local y radiación solar)
+  const isNightTime = () => {
+    const hour = new Date().getHours();
+    // Es de noche si son entre las 7pm y 6am, o si la radiación solar es muy baja
+    return (hour >= 19 || hour < 6) || solarRadiation < 10;
   };
+
+  // Mapeo de animaciones Lottie
+  const lottieFiles = {
+    sunny: '/lottie/Weather-sunny.lottie',
+    'partly-cloudy': '/lottie/Weather-partly shower.lottie',
+    cloudy: '/lottie/Cloud Lottie Animation.lottie',
+    rainy: '/lottie/rainy icon.lottie',
+    night: '/lottie/Weather Night - Clear sky.lottie',
+  };
+
+  // Determinar qué animación usar según el clima actual
+  const getLottieAnimation = (): LottieAnimationType => {
+    // Si es de noche y no está muy nublado, mostrar animación de noche
+    if (isNightTime() && cloudCover < 50) {
+      return 'night';
+    }
+
+    // Durante el día, basarse en la nubosidad
+    if (cloudCover < 20) return 'sunny';
+    if (cloudCover < 50) return 'partly-cloudy';
+    if (cloudCover < 80) return 'cloudy';
+    return 'rainy';
+  };
+
+  const autoAnimation = getLottieAnimation();
+  // Permitir override manual desde el sandbox
+  const [manualOverride, setManualOverride] = useState<LottieAnimationType | null>(null);
+  const currentAnimation = manualOverride ?? autoAnimation;
+
+  // Componente de animación Lottie
+  const WeatherAnimation = ({ type, size = 'w-24 h-24' }: { type: LottieAnimationType; size?: string }) => (
+    <div className={size}>
+      <DotLottieReact
+        src={lottieFiles[type]}
+        loop
+        autoplay
+      />
+    </div>
+  );
 
   const getWeatherConditionText = () => {
     if (weather.description) return weather.description;
@@ -68,16 +111,25 @@ export default function WeatherToday({ weather }: WeatherTodayProps) {
         <div className="mb-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-gray-900">Clima Actual</h3>
-            <span className="text-[10px] text-sky-600 font-medium bg-sky-100/50 px-2 py-0.5 rounded-full">
-              {locationLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSandbox(!showSandbox)}
+                className="text-[10px] text-purple-600 font-medium bg-purple-100/50 px-2 py-0.5 rounded-full hover:bg-purple-200/50 transition-colors"
+                title="Probar animaciones"
+              >
+                🎨 Test
+              </button>
+              <span className="text-[10px] text-sky-600 font-medium bg-sky-100/50 px-2 py-0.5 rounded-full">
+                {locationLabel}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Main Weather Display */}
         <div className="flex items-center gap-6 mb-4 p-4 bg-white/30 backdrop-blur-sm rounded-2xl">
           <div className="flex-shrink-0">
-            {getWeatherIcon()}
+            <WeatherAnimation type={currentAnimation} size="w-32 h-32" />
           </div>
           <div className="flex-1">
             <div className="text-5xl font-extrabold text-gray-900 leading-none mb-1">
@@ -110,6 +162,58 @@ export default function WeatherToday({ weather }: WeatherTodayProps) {
             </button>
           </div>
         </div>
+
+        {/* Sandbox para probar animaciones */}
+        {showSandbox && (
+          <div className="mb-4 p-4 bg-purple-50/50 backdrop-blur-sm rounded-2xl border-2 border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-xs font-semibold text-purple-900">
+                🎨 Sandbox - Probar Animaciones
+              </div>
+              {manualOverride && (
+                <button
+                  onClick={() => setManualOverride(null)}
+                  className="text-[10px] px-2 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                >
+                  Restaurar Auto
+                </button>
+              )}
+            </div>
+            <div className="mb-3 text-[10px] text-purple-700 bg-purple-100/50 rounded-lg p-2">
+              <strong>Modo actual:</strong> {manualOverride ? 'Manual' : 'Automático'} |
+              <strong> Detectado:</strong> {autoAnimation} ({isNightTime() ? 'Noche' : 'Día'}, Nubosidad: {cloudCover}%)
+            </div>
+            <div className="grid grid-cols-5 gap-2">
+              {(['sunny', 'partly-cloudy', 'cloudy', 'rainy', 'night'] as LottieAnimationType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setManualOverride(type)}
+                  className={`p-3 rounded-lg transition-all ${
+                    currentAnimation === type
+                      ? 'bg-purple-500 ring-2 ring-purple-600 shadow-lg scale-105'
+                      : 'bg-white/50 hover:bg-white/80 hover:scale-105'
+                  }`}
+                  title={type}
+                >
+                  <div className="text-lg text-center">
+                    {type === 'sunny' && '☀️'}
+                    {type === 'partly-cloudy' && '⛅'}
+                    {type === 'cloudy' && '☁️'}
+                    {type === 'rainy' && '🌧️'}
+                    {type === 'night' && '🌙'}
+                  </div>
+                  <div className="text-[8px] text-center mt-1 text-gray-600">
+                    {type === 'sunny' && 'Sol'}
+                    {type === 'partly-cloudy' && 'Parcial'}
+                    {type === 'cloudy' && 'Nublado'}
+                    {type === 'rainy' && 'Lluvia'}
+                    {type === 'night' && 'Noche'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Resumen rápido */}
         {weather.forecast && weather.forecast.length > 0 && (
@@ -148,7 +252,7 @@ export default function WeatherToday({ weather }: WeatherTodayProps) {
             {/* Temperatura principal */}
             <div className="flex items-center justify-center gap-4 mb-6 p-4 bg-gradient-to-br from-blue-50 to-sky-50 rounded-2xl">
               <div className="flex-shrink-0">
-                {getWeatherIcon()}
+                <WeatherAnimation type={currentAnimation} size="w-32 h-32" />
               </div>
               <div>
                 <div className="text-5xl font-extrabold text-gray-900">

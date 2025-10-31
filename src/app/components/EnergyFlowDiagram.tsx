@@ -1,5 +1,15 @@
+import {
+  SunIcon,
+  HomeIcon,
+  Battery0Icon,
+  Battery50Icon,
+  Battery100Icon,
+  BoltIcon,
+  ArrowRightIcon,
+  ArrowLongRightIcon,
+  InformationCircleIcon,
+} from '@heroicons/react/24/outline';
 import { EnergyFlow } from '@/types';
-import { Sun, Home, Battery, Zap, ArrowRight, Info } from 'lucide-react';
 
 interface EnergyFlowDiagramProps {
   energyFlow: EnergyFlow;
@@ -16,6 +26,7 @@ export default function EnergyFlowDiagram({
 }: EnergyFlowDiagramProps) {
   const { solarToBattery, solarToLoad, solarToGrid, batteryToLoad, gridToLoad } = energyFlow;
   const capacityKw = 50;
+  const BatteryGraphic = batteryLevel >= 75 ? Battery100Icon : batteryLevel >= 30 ? Battery50Icon : Battery0Icon;
 
   // Flow indicator component
   const FlowIndicator = ({ value, label, color }: { value: number; label: string; color: string }) => {
@@ -23,7 +34,7 @@ export default function EnergyFlowDiagram({
 
     return (
       <div className={`flex items-center gap-2 px-3 py-1.5 ${color} rounded-full`}>
-        <ArrowRight className="w-3 h-3" />
+        <ArrowLongRightIcon className="w-3 h-3" />
         <span className="text-xs font-bold">≈{value.toFixed(1)} kW</span>
         <span className="text-xs opacity-75">{label}</span>
       </div>
@@ -47,10 +58,10 @@ export default function EnergyFlowDiagram({
           {/* Solar Panel */}
           <div className="flex flex-col items-center justify-center">
             <div className="relative">
-              <div className="w-20 h-20 bg-yellow-50 border-2 border-yellow-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-transform">
-                <Sun className="w-10 h-10 text-yellow-500" />
+              <div className="w-20 h-20 bg-yellow-50 border-2 border-yellow-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-all duration-500 ease-in-out animate-pulse-subtle">
+                <SunIcon className="w-10 h-10 text-yellow-500 transition-transform duration-500 group-hover:rotate-180" />
               </div>
-              <div className="absolute -top-2 -right-2 bg-yellow-400 text-gray-900 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">
+              <div className="absolute -top-2 -right-2 bg-yellow-400 text-gray-900 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold animate-bounce-subtle shadow-lg">
                 {Math.min(100, (production / capacityKw) * 100).toFixed(0)}%
               </div>
             </div>
@@ -64,10 +75,10 @@ export default function EnergyFlowDiagram({
           {/* Battery */}
           <div className="flex flex-col items-center justify-center">
             <div className="relative">
-              <div className="w-20 h-20 bg-blue-50 border-2 border-blue-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-transform">
-                <Battery className="w-10 h-10 text-blue-500" />
+              <div className="w-20 h-20 bg-blue-50 border-2 border-blue-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-all duration-500 ease-in-out animate-pulse-subtle">
+                <BatteryGraphic className="w-10 h-10 text-blue-500 transition-all duration-500" />
               </div>
-              <div className="absolute -top-2 -right-2 bg-blue-400 text-gray-900 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">
+              <div className="absolute -top-2 -right-2 bg-blue-400 text-gray-900 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold animate-bounce-subtle shadow-lg">
                 {batteryLevel.toFixed(0)}%
               </div>
             </div>
@@ -83,8 +94,8 @@ export default function EnergyFlowDiagram({
           {/* Grid */}
           <div className="flex flex-col items-center justify-center">
             <div className="relative">
-              <div className="w-20 h-20 bg-cyan-50 border-2 border-cyan-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-transform">
-                <Zap className="w-10 h-10 text-cyan-500" />
+              <div className="w-20 h-20 bg-cyan-50 border-2 border-cyan-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-all duration-500 ease-in-out animate-pulse-subtle">
+                <BoltIcon className="w-10 h-10 text-cyan-500 transition-all duration-300 group-hover:scale-125" />
               </div>
             </div>
             <div className="mt-3 text-center">
@@ -102,11 +113,11 @@ export default function EnergyFlowDiagram({
         {/* Load/Consumption - Centered below */}
         <div className="mt-8 flex flex-col items-center">
           <div className="relative">
-            <div className="w-24 h-24 bg-emerald-50 border-2 border-emerald-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-transform">
-              <Home className="w-12 h-12 text-green-500" />
+            <div className="w-24 h-24 bg-emerald-50 border-2 border-emerald-200 rounded-xl flex items-center justify-center group hover:scale-110 transition-all duration-500 ease-in-out animate-pulse-subtle">
+              <HomeIcon className="w-12 h-12 text-green-500 transition-all duration-500" />
             </div>
-            <div className="absolute -top-2 -right-2 bg-green-400 text-gray-900 rounded-full w-10 h-10 flex items-center justify-center text-sm font-bold">
-              <ArrowRight className="w-5 h-5" />
+            <div className="absolute -top-2 -right-2 bg-green-400 text-gray-900 rounded-full w-10 h-10 flex items-center justify-center text-sm font-bold animate-bounce-subtle shadow-lg">
+              <ArrowRightIcon className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3 text-center">
@@ -164,7 +175,7 @@ export default function EnergyFlowDiagram({
           </span>
         </div>
         <div className="mt-3 flex items-start gap-2 text-xs text-gray-600">
-          <Info className="w-3.5 h-3.5 mt-0.5" />
+          <InformationCircleIcon className="w-3.5 h-3.5 mt-0.5" />
           <span>Escenario generado a partir del pronóstico climático disponible. No existen mediciones directas de potencia o flujo en tiempo real.</span>
         </div>
       </div>

@@ -1,12 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import MetricsCards from './MetricsCards';
 import SolarProductionChart from './SolarProductionChart';
 import BatteryStatus from './BatteryStatus';
-import WeatherWidget from './WeatherWidget';
 import WeatherToday from './WeatherToday';
 import WeatherForecast from './WeatherForecast';
 import PredictionsPanel from './PredictionsPanel';
@@ -27,7 +24,7 @@ import {
   BatteryConfig,
   EnergyFlow,
 } from '@/types';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface DashboardProps {
   user: User;
@@ -35,7 +32,6 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
-  const router = useRouter();
   const [solarData, setSolarData] = useState<{
     current: SolarData;
     historical: SolarData[];
@@ -163,7 +159,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 via-white to-blue-100">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-green-500 animate-spin mx-auto mb-4" />
+          <ArrowPathIcon className="w-12 h-12 text-green-500 animate-spin mx-auto mb-4" />
           <p className="text-gray-600 text-lg">Cargando Gemelo Digital...</p>
         </div>
       </div>
@@ -171,7 +167,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   }
 
   const handleAddDevice = () => {
-    router.push('/configuracion');
+    setActiveSection('devices');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -187,18 +184,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
              
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
-              <Link
-                href="/configuracion"
+              <button
+                onClick={() => setActiveSection('devices')}
                 className="hidden sm:inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
               >
-                Configuración
-              </Link>
+                Dispositivos
+              </button>
               <button
                 onClick={fetchData}
                 className="p-2 sm:p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors group"
                 title="Actualizar"
               >
-                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 group-hover:rotate-180 transition-transform duration-500" />
+                <ArrowPathIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 group-hover:rotate-180 transition-transform duration-500" />
               </button>
               <button
                 onClick={onLogout}
@@ -246,10 +243,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               </div>
             </div>
 
-            <div className="mb-6 sm:mb-8">
-              <WeatherWidget weather={weatherData} />
-            </div>
-
             <div>
               <PredictionsPanel
                 predictions={predictionsData.predictions}
@@ -281,6 +274,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             panels={panelConfigs}
             batteries={batteryConfigs}
             systemConfig={solarData.config}
+            onRefresh={fetchData}
           />
         )}
       </main>

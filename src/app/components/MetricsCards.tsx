@@ -1,5 +1,5 @@
+import { BoltIcon, ArrowTrendingUpIcon, ChartBarIcon, LeafIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 import { SystemMetrics } from '@/types';
-import { Zap, TrendingUp, Activity, Leaf, Target } from 'lucide-react';
 
 interface MetricsCardsProps {
   metrics: SystemMetrics;
@@ -12,7 +12,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
       subtitle: 'Próxima hora',
       value: metrics.currentProduction,
       unit: 'kW',
-      icon: Zap,
+      icon: BoltIcon,
       color: 'text-green-400',
       bgColor: 'bg-green-400/10',
       borderColor: 'border-green-400/20',
@@ -22,7 +22,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
       subtitle: 'Próxima hora',
       value: metrics.currentConsumption,
       unit: 'kW',
-      icon: Activity,
+      icon: ChartBarIcon,
       color: 'text-blue-400',
       bgColor: 'bg-blue-400/10',
       borderColor: 'border-blue-400/20',
@@ -32,7 +32,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
       subtitle: 'Excedente o déficit',
       value: metrics.energyBalance,
       unit: 'kW',
-      icon: TrendingUp,
+      icon: ArrowTrendingUpIcon,
       color: metrics.energyBalance >= 0 ? 'text-green-400' : 'text-red-400',
       bgColor: metrics.energyBalance >= 0 ? 'bg-green-400/10' : 'bg-red-400/10',
       borderColor: metrics.energyBalance >= 0 ? 'border-green-400/20' : 'border-red-400/20',
@@ -42,7 +42,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
       subtitle: 'Comparada con el ideal',
       value: metrics.systemEfficiency,
       unit: '%',
-      icon: Leaf,
+      icon: LeafIcon,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-400/10',
       borderColor: 'border-emerald-400/20',
@@ -92,7 +92,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
         })}
       </div>
       <div className="mt-4 flex items-center gap-2 text-xs text-gray-600">
-        <Target className="w-3 h-3 text-gray-500" />
+        <InformationCircleIcon className="w-3 h-3 text-gray-500" />
         <span>Valores estimados mediante clima en vivo y fichas técnicas. No hay mediciones en tiempo real.</span>
       </div>
     </>
