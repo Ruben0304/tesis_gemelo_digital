@@ -24,29 +24,29 @@ export default function SolarProductionChart({ data }: SolarProductionChartProps
     if (!active || !payload) return null;
 
     return (
-      <div className="bg-gray-900/95 border border-gray-700 rounded-lg p-3 shadow-xl">
-        <p className="text-gray-300 text-sm font-semibold mb-2">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-lg">
+        <p className="text-gray-700 text-sm font-semibold mb-2">
           {payload[0]?.payload.time}
         </p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-green-400" />
-            <span className="text-xs text-gray-400">Producción:</span>
-            <span className="text-sm font-bold text-green-400">
+            <span className="text-xs text-gray-600">Producción:</span>
+            <span className="text-sm font-bold text-green-500">
               {payload[0]?.value} kW
             </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-400" />
-            <span className="text-xs text-gray-400">Consumo:</span>
-            <span className="text-sm font-bold text-blue-400">
+            <span className="text-xs text-gray-600">Consumo:</span>
+            <span className="text-sm font-bold text-blue-500">
               {payload[1]?.value} kW
             </span>
           </div>
           <div className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${payload[0]?.payload.balance >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`} />
-            <span className="text-xs text-gray-400">Balance:</span>
-            <span className={`text-sm font-bold ${payload[0]?.payload.balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            <span className="text-xs text-gray-600">Balance:</span>
+            <span className={`text-sm font-bold ${payload[0]?.payload.balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
               {payload[0]?.payload.balance >= 0 ? '+' : ''}{payload[0]?.payload.balance} kW
             </span>
           </div>
@@ -56,12 +56,12 @@ export default function SolarProductionChart({ data }: SolarProductionChartProps
   };
 
   return (
-    <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
+    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white mb-1">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">
           Proyección de producción vs consumo
         </h2>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-600">
           Próximas 24 horas basadas en clima y especificaciones del sistema
         </p>
       </div>
@@ -78,25 +78,25 @@ export default function SolarProductionChart({ data }: SolarProductionChartProps
               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" opacity={0.6} />
           <XAxis
             dataKey="time"
-            stroke="#9ca3af"
-            tick={{ fill: '#9ca3af', fontSize: 12 }}
-            tickLine={{ stroke: '#4b5563' }}
+            stroke="#6b7280"
+            tick={{ fill: '#6b7280', fontSize: 12 }}
+            tickLine={{ stroke: '#9ca3af' }}
           />
           <YAxis
-            stroke="#9ca3af"
-            tick={{ fill: '#9ca3af', fontSize: 12 }}
-            tickLine={{ stroke: '#4b5563' }}
-            label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#9ca3af' }}
+            stroke="#6b7280"
+            tick={{ fill: '#6b7280', fontSize: 12 }}
+            tickLine={{ stroke: '#9ca3af' }}
+            label={{ value: 'kW', angle: -90, position: 'insideLeft', fill: '#6b7280' }}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="circle"
             formatter={(value) => (
-              <span className="text-gray-300 text-sm font-medium">{value}</span>
+              <span className="text-gray-600 text-sm font-medium">{value}</span>
             )}
           />
           <Area
@@ -120,26 +120,26 @@ export default function SolarProductionChart({ data }: SolarProductionChartProps
 
       {/* Summary stats */}
       <div className="mt-6 grid grid-cols-3 gap-4">
-        <div className="text-center p-3 bg-green-400/10 rounded-lg border border-green-400/20">
-          <p className="text-xs text-gray-400 mb-1">Producción estimada</p>
-          <p className="text-lg font-bold text-green-400">
+        <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+          <p className="text-xs text-gray-600 mb-1">Producción estimada</p>
+          <p className="text-lg font-bold text-green-500">
             ≈{chartData.reduce((sum, d) => sum + d.producción, 0).toFixed(1)} kWh
           </p>
         </div>
-        <div className="text-center p-3 bg-blue-400/10 rounded-lg border border-blue-400/20">
-          <p className="text-xs text-gray-400 mb-1">Consumo estimado</p>
-          <p className="text-lg font-bold text-blue-400">
+        <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <p className="text-xs text-gray-600 mb-1">Consumo estimado</p>
+          <p className="text-lg font-bold text-blue-500">
             ≈{chartData.reduce((sum, d) => sum + d.consumo, 0).toFixed(1)} kWh
           </p>
         </div>
-        <div className="text-center p-3 bg-emerald-400/10 rounded-lg border border-emerald-400/20">
-          <p className="text-xs text-gray-400 mb-1">Balance neto proyectado</p>
-          <p className="text-lg font-bold text-emerald-400">
+        <div className="text-center p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+          <p className="text-xs text-gray-600 mb-1">Balance neto proyectado</p>
+          <p className="text-lg font-bold text-emerald-500">
             ≈{chartData.reduce((sum, d) => sum + d.balance, 0).toFixed(1)} kWh
           </p>
         </div>
       </div>
-      <p className="mt-4 text-xs text-gray-500">
+      <p className="mt-4 text-xs text-gray-600">
         Datos generados sin telemetría en vivo; el cálculo se alimenta únicamente de condiciones atmosféricas y características del arreglo.
       </p>
     </div>

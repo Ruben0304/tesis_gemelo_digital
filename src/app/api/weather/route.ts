@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
-import { generateWeatherData } from '@/lib/mockData';
+import { getWeatherWithFallback } from '@/lib/openMeteo';
 import { getSystemConfig } from '@/lib/systemConfig';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/weather
- * Returns current weather data and 7-day forecast
+ * Returns current weather data and 7-day forecast from Open-Meteo API
+ * Falls back to mock data if API is unavailable
  */
 export async function GET() {
   try {
     const systemConfig = await getSystemConfig();
-    const weatherData = await generateWeatherData(systemConfig.solar.capacityKw);
+
+    // Obtener datos meteorológicos reales de Open-Meteo con fallback a mock
+    const weatherData = await getWeatherWithFallback(
+      systemConfig.location.lat,
+      systemConfig.location.lon,
+      systemConfig.solar.capacityKw,
+      systemConfig.location.name
+    );
 
     return NextResponse.json({
       ...weatherData,
@@ -19,7 +27,7 @@ export async function GET() {
       config: systemConfig,
     });
   } catch (error) {
-    console.error('Error generating weather data:', error);
+    console.error('Error fetching weather data:', error);
     return NextResponse.json(
       { error: 'Failed to fetch weather data' },
       { status: 500 }

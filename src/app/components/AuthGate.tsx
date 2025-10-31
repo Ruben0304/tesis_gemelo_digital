@@ -16,10 +16,16 @@ interface AuthResponse {
 }
 
 const STORAGE_KEY = 'gd_auth_autofill';
-const DEFAULT_DEMO = {
+const DEFAULT_DEMO: {
+  name: string;
+  email: string;
+  password: string;
+  role?: 'user' | 'admin';
+} = {
   name: 'Operador Demo',
   email: 'demo@microrred.cu',
   password: 'Energia2025!',
+  role: 'user',
 };
 
 export default function AuthGate({ onAuthenticated }: AuthGateProps) {
@@ -52,8 +58,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     setName(values.name);
     setEmail(values.email);
     setPassword(values.password);
-    const resolvedRole: 'admin' | 'user' =
-      values.role === 'admin' || values.role === 'user' ? values.role : 'user';
+    const resolvedRole: 'admin' | 'user' = values.role ?? 'user';
     setRole(resolvedRole);
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...values, role: resolvedRole }));
@@ -90,7 +95,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
       });
 
       const parsed: AuthResponse | User = await response.json();
-      const user = 'user' in parsed ? parsed.user : parsed;
+      const user = ('user' in parsed ? parsed.user : parsed) as User | undefined;
 
       if (!response.ok || !user) {
         const errorMessage =
@@ -104,8 +109,8 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
       });
 
       if (typeof window !== 'undefined') {
-        const persistedRole = user.role ?? role;
-        const persistedName = user.name ?? name;
+        const persistedRole = (user as User).role ?? role;
+        const persistedName = (user as User).name ?? name;
         window.localStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
@@ -130,7 +135,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
       <div className="max-w-md w-full bg-gray-900/60 border border-gray-800 rounded-2xl shadow-2xl p-8 backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-6 text-green-400">
           <Sparkles className="w-6 h-6" />

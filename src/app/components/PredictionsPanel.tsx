@@ -268,22 +268,22 @@ export default function PredictionsPanel({
   const getAlertIcon = (type: Alert['type']) => {
     switch (type) {
       case 'critical':
-        return <AlertCircle className="w-4 h-4 text-red-400" />;
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-yellow-400" />;
+        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
       case 'info':
-        return <Info className="w-4 h-4 text-blue-400" />;
+        return <Info className="w-4 h-4 text-blue-500" />;
     }
   };
 
   const getAlertColor = (type: Alert['type']) => {
     switch (type) {
       case 'critical':
-        return 'bg-red-400/10 border-red-400/25';
+        return 'bg-red-50 border-red-200';
       case 'warning':
-        return 'bg-yellow-400/10 border-yellow-400/25';
+        return 'bg-yellow-50 border-yellow-200';
       case 'info':
-        return 'bg-blue-400/10 border-blue-400/25';
+        return 'bg-blue-50 border-blue-200';
     }
   };
 
@@ -291,10 +291,10 @@ export default function PredictionsPanel({
     <div className="space-y-6">
       {/* Alerts Section */}
       {alerts.length > 0 && (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-yellow-400" />
-            <h2 className="text-xl font-bold text-white">
+            <AlertTriangle className="w-5 h-5 text-yellow-500" />
+            <h2 className="text-xl font-bold text-gray-900">
               Alertas inteligentes ({alerts.length})
             </h2>
           </div>
@@ -306,10 +306,10 @@ export default function PredictionsPanel({
               >
                 <div className="mt-0.5">{getAlertIcon(alert.type)}</div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-gray-900">
                     {alert.title}
                   </p>
-                  <p className="text-xs text-gray-300">{alert.message}</p>
+                  <p className="text-xs text-gray-600">{alert.message}</p>
                 </div>
                 <span className="text-[10px] text-gray-500 uppercase tracking-wide">
                   {new Date(alert.timestamp).toLocaleTimeString('es-ES', {
@@ -323,59 +323,58 @@ export default function PredictionsPanel({
         </div>
       )}
 
-      {/* Planned Blackouts */}
       {blackoutEntries.length > 0 && (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <Power className="w-5 h-5 text-red-400" />
-            <h2 className="text-xl font-bold text-white">
+            <Power className="w-5 h-5 text-red-500" />
+            <h2 className="text-xl font-bold text-gray-900">
               Apagones programados ({blackoutEntries.length})
             </h2>
           </div>
           {activeBlackout ? (
-            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
-              <p className="text-sm font-semibold text-red-200">
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-semibold text-red-600">
                 Apagón en curso · {formatDay(activeBlackout.start)} {formatTime(activeBlackout.start)} –{' '}
                 {formatTime(activeBlackout.end)}
               </p>
-              <p className="text-xs text-red-100/80 mt-1">
+              <p className="text-xs text-red-500 mt-1">
                 Intensidad {activeBlackout.intensity}. Duración estimada {activeBlackout.duration} min.
                 {activeBlackout.location && ` • Zona ${activeBlackout.location}`}
               </p>
               {activeBlackout.note && (
-                <p className="text-xs text-red-100/70 mt-1">{activeBlackout.note}</p>
+                <p className="text-xs text-red-500/80 mt-1">{activeBlackout.note}</p>
               )}
             </div>
           ) : (
-            <p className="text-xs text-gray-400 mb-4">
+            <p className="text-xs text-gray-600 mb-4">
               No hay apagones activos ahora. Revise las próximas interrupciones planificadas.
             </p>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {upcomingBlackouts.length === 0 ? (
-              <p className="text-xs text-gray-400 col-span-full">
+              <p className="text-xs text-gray-600 col-span-full">
                 No hay apagones planificados en las próximas 48 horas.
               </p>
             ) : (
               upcomingBlackouts.map((entry) => (
                 <div
                   key={entry.id}
-                  className="rounded-lg border border-red-400/25 bg-red-500/5 px-4 py-3"
+                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-3"
                 >
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-gray-900">
                     {formatDay(entry.start)} • {formatTime(entry.start)} – {formatTime(entry.end)}
                   </p>
-                  <p className="text-xs text-gray-300 mt-1">
+                  <p className="text-xs text-gray-600 mt-1">
                     Duración {entry.duration} min · Intensidad {entry.intensity}
                   </p>
                   {entry.location && (
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       Zona: {entry.location}
                     </p>
                   )}
                   {entry.note && (
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       {entry.note}
                     </p>
                   )}
@@ -387,7 +386,7 @@ export default function PredictionsPanel({
       )}
 
       {/* Real-time feeds */}
-      <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
+      {/* <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <CloudLightning className="w-5 h-5 text-sky-400" />
           <h2 className="text-xl font-bold text-white">Datos en tiempo real</h2>
@@ -475,10 +474,10 @@ export default function PredictionsPanel({
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Felicity panel status */}
-      <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
+      {/* <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <Thermometer className="w-5 h-5 text-amber-400" />
           <h2 className="text-xl font-bold text-white">Felicity • Panel Titan</h2>
@@ -545,56 +544,56 @@ export default function PredictionsPanel({
             </>
           )}
         </p>
-      </div>
+      </div> */}
 
       {/* Simulated predictions */}
-      <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
+      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-5 h-5 text-purple-400" />
-          <h2 className="text-xl font-bold text-white">Predicciones simuladas</h2>
+          <Clock className="w-5 h-5 text-purple-500" />
+          <h2 className="text-xl font-bold text-gray-900">Predicciones simuladas</h2>
         </div>
-        <p className="text-xs text-gray-500 mb-4">
+        <p className="text-xs text-gray-600 mb-4">
           Estimaciones generadas a partir de clima en vivo y ficha técnica del panel;
           no representan mediciones reales de la planta.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-          <div className="p-4 rounded-lg border border-purple-400/25 bg-purple-500/10">
-            <p className="text-xs uppercase tracking-wide text-purple-200/80 mb-1">
+          <div className="p-4 rounded-lg border border-purple-200 bg-purple-50">
+            <p className="text-xs uppercase tracking-wide text-purple-500 mb-1">
               Hora más productiva
             </p>
-            <p className="text-lg font-semibold text-white">
+            <p className="text-lg font-semibold text-gray-900">
               {bestHour.hour}:00 — {bestHour.expectedProduction.toFixed(1)} kW
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               Confianza: {bestHour.confidence}%
             </p>
           </div>
-          <div className="p-4 rounded-lg border border-purple-400/15 bg-gray-800/40">
-            <p className="text-xs uppercase tracking-wide text-purple-200/80 mb-1">
+          <div className="p-4 rounded-lg border border-purple-200 bg-gray-50">
+            <p className="text-xs uppercase tracking-wide text-purple-500 mb-1">
               Mayor riesgo
             </p>
-            <p className="text-lg font-semibold text-white">
+            <p className="text-lg font-semibold text-gray-900">
               {riskHour.hour}:00 —{' '}
               {(riskHour.expectedProduction - riskHour.expectedConsumption).toFixed(1)} kWh
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               Ajustar cargas no críticas en este bloque.
             </p>
           </div>
-          <div className="p-4 rounded-lg border border-purple-400/15 bg-gray-800/40">
-            <p className="text-xs uppercase tracking-wide text-purple-200/80 mb-1">
+          <div className="p-4 rounded-lg border border-purple-200 bg-gray-50">
+            <p className="text-xs uppercase tracking-wide text-purple-500 mb-1">
               Balance estimado 4h
             </p>
             <p
               className={`text-lg font-semibold ${
-                surplusEnergy >= 0 ? 'text-emerald-400' : 'text-red-400'
+                surplusEnergy >= 0 ? 'text-emerald-500' : 'text-red-500'
               }`}
             >
               {surplusEnergy >= 0 ? '+' : ''}
               {surplusEnergy} kWh
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-gray-600 mt-1">
               Basado en insumos climáticos combinados.
             </p>
           </div>
@@ -605,22 +604,22 @@ export default function PredictionsPanel({
             const balance = prediction.expectedProduction - prediction.expectedConsumption;
             const impact = prediction.blackoutImpact;
             const cardClasses = impact
-              ? 'flex items-center justify-between rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-3'
-              : 'flex items-center justify-between rounded-lg border border-purple-400/10 bg-gray-900/60 px-4 py-3';
+              ? 'flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3'
+              : 'flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50 px-4 py-3';
             const intervalStart = impact ? new Date(impact.intervalStart) : null;
             const intervalEnd = impact ? new Date(impact.intervalEnd) : null;
             return (
               <div key={prediction.timestamp} className={cardClasses}>
                 <div>
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-sm font-semibold text-gray-900">
                     {prediction.hour}:00 • Confianza {prediction.confidence}%
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-600">
                     Producción estimada {prediction.expectedProduction.toFixed(1)} kW ·
                     Consumo proyectado {prediction.expectedConsumption.toFixed(1)} kW
                   </p>
                   {impact && intervalStart && intervalEnd && (
-                    <p className="text-xs text-red-200 mt-1">
+                    <p className="text-xs text-red-600 mt-1">
                       Apagón {impact.intensity} {formatTime(intervalStart)} – {formatTime(intervalEnd)} ·
                       Consumo reducido al {(impact.loadFactor * 100).toFixed(0)}%
                       {impact.note ? ` • ${impact.note}` : ''}
@@ -629,7 +628,7 @@ export default function PredictionsPanel({
                 </div>
                 <span
                   className={`text-sm font-semibold ${
-                    balance >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    balance >= 0 ? 'text-emerald-500' : 'text-red-500'
                   }`}
                 >
                   {balance >= 0 ? '+' : ''}
@@ -642,7 +641,7 @@ export default function PredictionsPanel({
       </div>
 
       {/* Recommendations */}
-      {recommendations.length > 0 && (
+      {/* {recommendations.length > 0 && (
         <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-green-400" />
@@ -662,7 +661,7 @@ export default function PredictionsPanel({
             ))}
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 }

@@ -1,24 +1,29 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import MetricsCards from './MetricsCards';
 import SolarProductionChart from './SolarProductionChart';
 import BatteryStatus from './BatteryStatus';
 import WeatherWidget from './WeatherWidget';
-import EnergyFlowDiagram from './EnergyFlowDiagram';
 import PredictionsPanel from './PredictionsPanel';
+import FlujoEnergia from './FlujoEnergia';
+import DevicesView from './DevicesView';
+import FloatingBottomNav from './FloatingBottomNav';
 import {
   SolarData,
   BatteryStatus as BatteryStatusType,
   SystemMetrics,
-  EnergyFlow,
   WeatherData,
   Prediction,
   Alert,
   SystemConfig,
   User,
   BlackoutSchedule,
+  SolarPanelConfig,
+  BatteryConfig,
+  EnergyFlow,
 } from '@/types';
 import { RefreshCw, Loader2 } from 'lucide-react';
 
@@ -28,13 +33,14 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
+  const router = useRouter();
   const [solarData, setSolarData] = useState<{
     current: SolarData;
     historical: SolarData[];
     battery: BatteryStatusType;
     metrics: SystemMetrics;
-    energyFlow: EnergyFlow;
     config: SystemConfig;
+    energyFlow?: EnergyFlow;
   } | null>(null);
 
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -50,16 +56,71 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     blackouts?: BlackoutSchedule[];
   } | null>(null);
 
+  const [panelConfigs, setPanelConfigs] = useState<SolarPanelConfig[]>([]);
+  const [batteryConfigs, setBatteryConfigs] = useState<BatteryConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [activeSection, setActiveSection] = useState<'overview' | 'stats' | 'devices'>('overview');
+
+  const energyFlowData = useMemo<EnergyFlow | null>(() => {
+    if (!solarData) {
+      return null;
+    }
+
+    if (solarData.energyFlow) {
+      return solarData.energyFlow;
+    }
+
+    const { production, consumption, gridExport, gridImport } = solarData.current;
+    const batteryPower = solarData.battery.powerFlow;
+    const solarToLoad = Math.min(production, consumption);
+    const solarExcess = Math.max(0, production - solarToLoad);
+    const batteryCharging = batteryPower > 0 ? batteryPower : 0;
+    const batteryDischarging = batteryPower < 0 ? Math.abs(batteryPower) : 0;
+    const solarToBattery = Math.min(solarExcess, batteryCharging);
+    const solarToGrid = Math.max(gridExport, solarExcess - solarToBattery);
+    const batteryToLoad = batteryDischarging;
+    const gridToLoad = Math.max(
+      gridImport,
+      Math.max(0, consumption - solarToLoad - batteryToLoad)
+    );
+
+    return {
+      solarToBattery,
+      solarToLoad,
+      solarToGrid,
+      batteryToLoad,
+      gridToLoad,
+    };
+  }, [solarData]);
+
+  const flujoValores = useMemo(() => {
+    if (!solarData || !energyFlowData) {
+      return {
+        solar: 0,
+        battery: 0,
+        grid: 0,
+        consumo: 0,
+      };
+    }
+
+    return {
+      solar: Math.max(0, energyFlowData.solarToLoad),
+      battery: Math.max(0, energyFlowData.batteryToLoad),
+      grid: Math.max(0, energyFlowData.gridToLoad),
+      consumo: Math.max(0, solarData.current.consumption),
+    };
+  }, [solarData, energyFlowData]);
 
   // Fetch all data
   const fetchData = async () => {
     try {
-      const [solarRes, weatherRes, predictionsRes] = await Promise.all([
+      const [solarRes, weatherRes, predictionsRes, panelsRes, batteriesRes] = await Promise.all([
         fetch('/api/solar'),
         fetch('/api/weather'),
         fetch('/api/predictions'),
+        fetch('/api/paneles'),
+        fetch('/api/baterias'),
       ]);
 
       const solar = await solarRes.json();
@@ -69,6 +130,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       setSolarData(solar);
       setWeatherData(weather);
       setPredictionsData(predictions);
+      if (panelsRes.ok) {
+        const panelPayload = await panelsRes.json();
+        setPanelConfigs(panelPayload.items ?? []);
+      } else {
+        console.warn('No se pudieron obtener los paneles.');
+      }
+      if (batteriesRes.ok) {
+        const batteryPayload = await batteriesRes.json();
+        setBatteryConfigs(batteryPayload.items ?? []);
+      } else {
+        console.warn('No se pudieron obtener las baterías.');
+      }
       setLastUpdate(new Date());
       setLoading(false);
     } catch (error) {
@@ -86,167 +159,163 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   if (loading || !solarData || !weatherData || !predictionsData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-100 via-white to-blue-100">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400 text-lg">Cargando Gemelo Digital...</p>
+          <Loader2 className="w-12 h-12 text-green-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 text-lg">Cargando Gemelo Digital...</p>
         </div>
       </div>
     );
   }
 
+  const handleAddDevice = () => {
+    router.push('/configuracion');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-[1800px] mx-auto px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-white to-blue-100">
+      {/* Header Simplificado */}
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-extrabold text-white mb-1">
-                ⚡ Gemelo Digital - Microrred Solar
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+                Gemelo Digital - Microrred Solar
               </h1>
-              <p className="text-sm text-gray-400">
-                Planeación energética con proyecciones meteo • sin telemetría directa
+              <p className="text-xs sm:text-sm text-gray-600">
+                Monitoreo en tiempo real con datos de Open-Meteo
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <Link
                 href="/configuracion"
-                className="hidden sm:inline-flex items-center rounded-lg border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-xs font-semibold text-blue-200 hover:bg-blue-400/20 transition-colors"
+                className="hidden sm:inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
               >
-                Configurar equipos
+                Configuración
               </Link>
-              <div className="hidden sm:flex flex-col items-end">
-                <p className="text-xs text-gray-500">Operador</p>
-                <p className="text-sm font-semibold text-gray-200">
-                  {user.name ?? user.email}
-                </p>
-                <p className="text-[10px] uppercase text-gray-500 tracking-wide">
-                  Rol: {user.role}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Última actualización</p>
-                <p className="text-sm font-semibold text-gray-300">
-                  {lastUpdate.toLocaleTimeString('es-ES')}
-                </p>
-              </div>
               <button
                 onClick={fetchData}
-                className="p-3 bg-green-400/10 border border-green-400/20 rounded-lg hover:bg-green-400/20 transition-colors group"
-                title="Actualizar proyecciones"
+                className="p-2 sm:p-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors group"
+                title="Actualizar"
               >
-                <RefreshCw className="w-5 h-5 text-green-400 group-hover:rotate-180 transition-transform duration-500" />
+                <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 group-hover:rotate-180 transition-transform duration-500" />
               </button>
               <button
                 onClick={onLogout}
-                className="rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/20 transition-colors"
+                className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 sm:px-3 sm:py-2 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors"
               >
-                Cerrar sesión
+                Salir
               </button>
             </div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+            <span>{user.name ?? user.email} • {user.role}</span>
+            <span>Actualizado: {lastUpdate.toLocaleTimeString('es-ES')}</span>
           </div>
         </div>
       </header>
 
-      <div className="sm:hidden px-6 pt-4">
-        <p className="text-sm font-semibold text-white">
-          {user.name ?? user.email}
-        </p>
-        <p className="text-[11px] uppercase text-gray-500 tracking-wide">
-          Rol: {user.role}
-        </p>
-      </div>
+      {/* Main Content - Simplificado */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-32">
+        {activeSection === 'overview' && (
+          <>
+            <div className="mb-6 sm:mb-8">
+              <MetricsCards metrics={solarData.metrics} />
+            </div>
 
-      {/* Main Content */}
-      <main className="max-w-[1800px] mx-auto px-6 py-8">
-        {/* Metrics Cards */}
-        <div className="mb-8">
-          <MetricsCards metrics={solarData.metrics} />
-        </div>
+            <div className="mb-6 sm:mb-8">
+              <FlujoEnergia
+                values={flujoValores}
+                batteryLevel={solarData.battery.chargeLevel}
+              />
+            </div>
 
-        {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Left Column - 2 cols */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Production Chart */}
-            <SolarProductionChart data={solarData.historical} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="lg:col-span-2">
+                <SolarProductionChart data={solarData.historical} />
+              </div>
+              <div>
+                <BatteryStatus battery={solarData.battery} />
+              </div>
+            </div>
 
-            {/* Energy Flow Diagram
-            <EnergyFlowDiagram
-              energyFlow={solarData.energyFlow}
-              production={solarData.current.production}
-              consumption={solarData.current.consumption}
-              batteryLevel={solarData.battery.chargeLevel}
-            /> */}
-          </div>
+            <div className="mb-6 sm:mb-8">
+              <WeatherWidget weather={weatherData} />
+            </div>
 
-          {/* Right Column - 1 col */}
-          <div className="space-y-6">
-            {/* Battery Status */}
-            <BatteryStatus battery={solarData.battery} />
-
-            {/* Weather Widget */}
-            <WeatherWidget weather={weatherData} />
-          </div>
-        </div>
-
-        {/* Predictions Panel - Full Width */}
-        <div>
-          <PredictionsPanel
-            predictions={predictionsData.predictions}
-            alerts={predictionsData.alerts}
-            recommendations={predictionsData.recommendations}
-            weather={weatherData}
-            batteryProjection={predictionsData.battery}
-            config={solarData.config}
-            blackouts={predictionsData.blackouts}
-          />
-        </div>
-
-        {/* Footer Info */}
-        <div className="mt-8 p-6 bg-gray-900/30 border border-gray-800 rounded-xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
             <div>
-              <p className="text-xs text-gray-500 mb-1">Capacidad Instalada</p>
-              <p className="text-lg font-bold text-white">
+              <PredictionsPanel
+                predictions={predictionsData.predictions}
+                alerts={predictionsData.alerts}
+                recommendations={predictionsData.recommendations}
+                weather={weatherData}
+                batteryProjection={predictionsData.battery}
+                config={solarData.config}
+                blackouts={predictionsData.blackouts}
+              />
+            </div>
+          </>
+        )}
+
+        {activeSection === 'stats' && (
+          <section className="flex min-h-[60vh] items-center justify-center">
+            <div className="max-w-md rounded-3xl border border-white/40 bg-white/70 p-8 text-center backdrop-blur-xl shadow-[0_30px_70px_-50px_rgba(15,23,42,0.55)]">
+              <h2 className="text-2xl font-semibold text-slate-900">Estadísticas en preparación</h2>
+              <p className="mt-3 text-sm text-slate-600">
+                Estamos construyendo un tablero dedicado para tendencias históricas y comparativas.
+                Muy pronto podrá analizar el rendimiento detallado de la microrred.
+              </p>
+            </div>
+          </section>
+        )}
+
+        {activeSection === 'devices' && (
+          <DevicesView
+            panels={panelConfigs}
+            batteries={batteryConfigs}
+            systemConfig={solarData.config}
+          />
+        )}
+      </main>
+
+      <FloatingBottomNav
+        active={activeSection}
+        onSelect={setActiveSection}
+        onAddDevice={handleAddDevice}
+      />
+
+      {/* Footer Simplificado */}
+      <footer className="border-t border-gray-200 bg-white mt-8 sm:mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 text-center">
+            <div className="p-3 bg-gray-100 rounded-lg">
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Capacidad Solar</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900">
                 {solarData.config.solar.capacityKw.toFixed(1)} kW
               </p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Almacenamiento</p>
-              <p className="text-lg font-bold text-white">
+            <div className="p-3 bg-gray-100 rounded-lg">
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Batería</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900">
                 {solarData.config.battery.capacityKwh.toFixed(1)} kWh
               </p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Producción estimada (24h)</p>
-              <p className="text-lg font-bold text-green-400">
-                ≈{solarData.metrics.dailyProduction.toFixed(1)} kWh
+            <div className="p-3 bg-gray-100 rounded-lg">
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Prod. Hoy</p>
+              <p className="text-sm sm:text-lg font-bold text-green-400">
+                {solarData.metrics.dailyProduction.toFixed(1)} kWh
               </p>
             </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">CO₂ evitado (estimado)</p>
-              <p className="text-lg font-bold text-emerald-400">
-                ≈{solarData.metrics.co2Avoided.toFixed(1)} kg
+            <div className="p-3 bg-gray-100 rounded-lg">
+              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">CO₂ Evitado</p>
+              <p className="text-sm sm:text-lg font-bold text-emerald-400">
+                {solarData.metrics.co2Avoided.toFixed(1)} kg
               </p>
             </div>
           </div>
-          <p className="mt-4 text-xs text-gray-500 text-center">
-            Todos los valores energéticos representan escenarios proyectados con datos climáticos de referencia y capacidades nominales Felicity.
+          <p className="text-center text-[10px] sm:text-xs text-gray-500">
+            Datos proporcionados por Open-Meteo API • Proyecciones basadas en condiciones climáticas reales
           </p>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-800 bg-gray-900/50 mt-12">
-        <div className="max-w-[1800px] mx-auto px-6 py-6">
-          <div className="text-center text-sm text-gray-500">
-            <p>Gemelo Digital de Microrred Fotovoltaica • Enfoque de planificación y predicción</p>
-            <p className="mt-1 text-xs">
-              Proyecciones alimentadas por clima en vivo y ficha técnica de paneles Felicity. Sin mediciones directas de campo.
-            </p>
-          </div>
         </div>
       </footer>
     </div>

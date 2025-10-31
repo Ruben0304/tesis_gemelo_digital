@@ -38,8 +38,8 @@ export default function Home() {
 
   if (!bootstrapped) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
-        <div className="text-center text-gray-300">
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
+        <div className="text-center text-gray-600">
           <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-4" />
           Preparando interfaz…
         </div>

@@ -57,11 +57,11 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
           return (
             <div
               key={index}
-            className={`relative overflow-hidden rounded-xl border ${card.borderColor} ${card.bgColor} p-6 transition-all hover:shadow-lg`}
-          >
+              className={`relative overflow-hidden rounded-xl border ${card.borderColor} bg-white p-6 transition-all hover:shadow-lg`}
+            >
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-400 mb-1">
+                <p className="text-sm font-medium text-gray-600 mb-1">
                   {card.title}
                 </p>
                 {card.subtitle && (
@@ -91,7 +91,7 @@ export default function MetricsCards({ metrics }: MetricsCardsProps) {
           );
         })}
       </div>
-      <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
+      <div className="mt-4 flex items-center gap-2 text-xs text-gray-600">
         <Target className="w-3 h-3 text-gray-500" />
         <span>Valores estimados mediante clima en vivo y fichas técnicas. No hay mediciones en tiempo real.</span>
       </div>

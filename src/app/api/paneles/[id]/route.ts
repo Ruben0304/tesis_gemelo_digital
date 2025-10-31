@@ -3,7 +3,7 @@ import { deletePanel, getPanelById, updatePanel } from '@/lib/panelService';
 import { ObjectId } from 'mongodb';
 
 interface RouteContext {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 function isValidObjectId(id: string): boolean {
@@ -12,7 +12,7 @@ function isValidObjectId(id: string): boolean {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: 'Identificador de panel no válido.' },
@@ -37,7 +37,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PUT(request: Request, context: RouteContext) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: 'Identificador de panel no válido.' },
@@ -62,7 +62,7 @@ export async function PUT(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     if (!isValidObjectId(id)) {
       return NextResponse.json(
         { error: 'Identificador de panel no válido.' },

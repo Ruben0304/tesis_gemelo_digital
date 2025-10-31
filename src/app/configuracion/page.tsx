@@ -586,7 +586,7 @@ export default function ConfiguracionPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-transparent text-white pb-16">
       <header className="border-b border-gray-800 bg-gray-900/60 backdrop-blur-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

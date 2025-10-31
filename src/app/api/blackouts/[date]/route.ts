@@ -14,10 +14,11 @@ function decodeDateParam(params: { date: string }): string {
 
 export async function GET(
   _request: Request,
-  context: { params: { date: string } }
+  context: { params: Promise<{ date: string }> }
 ) {
   try {
-    const dateParam = decodeDateParam(context.params);
+    const params = await context.params;
+    const dateParam = decodeDateParam(params);
     const schedule = await getBlackoutByDate(dateParam);
     if (!schedule) {
       return NextResponse.json({ error: 'No existe programación para ese día.' }, { status: 404 });
@@ -32,10 +33,11 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  context: { params: { date: string } }
+  context: { params: Promise<{ date: string }> }
 ) {
   try {
-    const dateParam = decodeDateParam(context.params);
+    const params = await context.params;
+    const dateParam = decodeDateParam(params);
     const payload = await request.json();
     const schedule = await saveBlackoutSchedule({
       ...payload,
@@ -51,10 +53,11 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  context: { params: { date: string } }
+  context: { params: Promise<{ date: string }> }
 ) {
   try {
-    const dateParam = decodeDateParam(context.params);
+    const params = await context.params;
+    const dateParam = decodeDateParam(params);
     const deleted = await deleteBlackout(dateParam);
     if (!deleted) {
       return NextResponse.json({ error: 'No había programación para eliminar.' }, { status: 404 });

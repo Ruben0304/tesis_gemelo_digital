@@ -153,11 +153,11 @@ export async function saveBlackoutSchedule(payload: SaveBlackoutPayload): Promis
     }
   );
 
-  if (!result.value) {
+  if (!result) {
     throw new Error('No se pudo guardar el horario de apagón.');
   }
 
-  return mapSchedule(result.value);
+  return mapSchedule(result);
 }
 
 export interface ListBlackoutsOptions {

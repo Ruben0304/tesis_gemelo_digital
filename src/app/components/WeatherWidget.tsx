@@ -43,10 +43,10 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
   const currentCondition = getCurrentCondition();
 
   return (
-    <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-6">
+    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs uppercase tracking-wide text-sky-300/80">
+          <span className="text-xs uppercase tracking-wide text-sky-600">
             {providerLabel}
           </span>
           {lastUpdatedLabel && (
@@ -55,23 +55,23 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
             </span>
           )}
         </div>
-        <h2 className="text-2xl font-bold text-white mb-1">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">
           Clima en {locationLabel}
         </h2>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-gray-600">
           Condiciones actuales y pronóstico extendido
         </p>
       </div>
 
       {/* Current weather */}
-      <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-xl border border-blue-500/20">
+      <div className="flex items-center justify-between mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
         <div className="flex items-center gap-4">
           {getWeatherIcon(currentCondition, 16)}
           <div>
-            <div className="text-5xl font-extrabold text-white">
+            <div className="text-5xl font-extrabold text-gray-900">
               {temperature.toFixed(1)}°
             </div>
-            <div className="text-sm text-gray-400 mt-1">
+            <div className="text-sm text-gray-600 mt-1">
               {weather.description
                 ? weather.description.charAt(0).toUpperCase() + weather.description.slice(1)
                 : currentCondition === 'sunny'
@@ -88,42 +88,42 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
 
       {/* Weather metrics */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="p-3 bg-gray-800/50 rounded-lg">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <Gauge className="w-4 h-4 text-orange-400" />
-            <span className="text-xs text-gray-400">Radiación Solar</span>
+            <span className="text-xs text-gray-600">Radiación Solar</span>
           </div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-gray-900">
             {solarRadiation} W/m²
           </div>
         </div>
 
-        <div className="p-3 bg-gray-800/50 rounded-lg">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <Cloud className="w-4 h-4 text-gray-400" />
-            <span className="text-xs text-gray-400">Nubosidad</span>
+            <span className="text-xs text-gray-600">Nubosidad</span>
           </div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-gray-900">
             {cloudCover}%
           </div>
         </div>
 
-        <div className="p-3 bg-gray-800/50 rounded-lg">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <Droplets className="w-4 h-4 text-blue-400" />
-            <span className="text-xs text-gray-400">Humedad</span>
+            <span className="text-xs text-gray-600">Humedad</span>
           </div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-gray-900">
             {humidity}%
           </div>
         </div>
 
-        <div className="p-3 bg-gray-800/50 rounded-lg">
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
           <div className="flex items-center gap-2 mb-1">
             <Wind className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs text-gray-400">Viento</span>
+            <span className="text-xs text-gray-600">Viento</span>
           </div>
-          <div className="text-lg font-bold text-white">
+          <div className="text-lg font-bold text-gray-900">
             {windSpeed} km/h
           </div>
         </div>
@@ -131,18 +131,18 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
 
       {/* 5-day forecast */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-400 mb-3">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">
           Pronóstico 5 Días
         </h3>
         <div className="space-y-2">
           {forecast.slice(0, 5).map((day, index) => (
             <div
               key={index}
-              className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg hover:bg-gray-800/50 transition-colors"
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               <div className="flex items-center gap-3 flex-1">
                 {getWeatherIcon(day.condition, 6)}
-                <span className="text-sm font-medium text-gray-300 w-24">
+                <span className="text-sm font-medium text-gray-700 w-24">
                   {index === 0
                     ? 'Hoy'
                     : format(new Date(day.date), 'EEE', { locale: es })}
@@ -150,14 +150,14 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <div className="text-xs text-gray-400">Temp</div>
-                  <div className="text-sm font-semibold text-white">
+                  <div className="text-xs text-gray-600">Temp</div>
+                  <div className="text-sm font-semibold text-gray-900">
                     {day.maxTemp.toFixed(0)}° / {day.minTemp.toFixed(0)}°
                   </div>
                 </div>
                 <div className="text-right w-20">
-                  <div className="text-xs text-gray-400">Prod.</div>
-                  <div className="text-sm font-semibold text-green-400">
+                  <div className="text-xs text-gray-600">Prod.</div>
+                  <div className="text-sm font-semibold text-green-500">
                     {day.predictedProduction.toFixed(0)} kWh
                   </div>
                 </div>
@@ -166,7 +166,7 @@ export default function WeatherWidget({ weather }: WeatherWidgetProps) {
           ))}
         </div>
       </div>
-      <p className="mt-5 text-xs text-gray-500">
+      <p className="mt-5 text-xs text-gray-600">
         Estos datos de {providerLabel} alimentan todas las proyecciones energéticas. No se dispone de mediciones directas de generación o estado de carga.
       </p>
     </div>

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0e1a;
-  --foreground: #e5e7eb;
+  --background: linear-gradient(180deg, #cfe6ff 0%, #eaf2ff 45%, #f6f9ff 100%);
+  --foreground: #0f172a;
 
   /* Solar theme colors */
   --solar-yellow: #fbbf24;
@@ -21,6 +21,7 @@
 
 body {
   background: var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   scroll-behavior: smooth;
@@ -32,16 +33,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: rgba(15, 23, 42, 0.08);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: rgba(37, 99, 235, 0.35);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: rgba(37, 99, 235, 0.5);
 }
 
 /* Smooth animations */
