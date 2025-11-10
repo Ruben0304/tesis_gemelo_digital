@@ -1,0 +1,7 @@
+fastapi==0.115.4
+uvicorn[standard]==0.32.0
+strawberry-graphql[fastapi]==0.245.2
+python-dotenv==1.0.1
+pymongo==4.10.1
+pydantic==2.9.2
+python-multipart==0.0.17
