@@ -26,6 +26,321 @@ import {
   EnergyFlow,
 } from '@/types';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { executeQuery } from '@/lib/graphql-client';
+
+const DASHBOARD_QUERY = `
+  query DashboardData {
+    solar {
+      timestamp
+      mode
+      current {
+        timestamp
+        production
+        consumption
+        batteryLevel
+        gridExport
+        gridImport
+        efficiency
+        batteryDelta
+      }
+      historical {
+        timestamp
+        production
+        consumption
+        batteryLevel
+        gridExport
+        gridImport
+        efficiency
+        batteryDelta
+      }
+      battery {
+        chargeLevel
+        capacity
+        current
+        autonomyHours
+        charging
+        powerFlow
+        projectedMinLevel
+        projectedMaxLevel
+        note
+      }
+      metrics {
+        currentProduction
+        currentConsumption
+        energyBalance
+        systemEfficiency
+        dailyProduction
+        dailyConsumption
+        co2Avoided
+      }
+      energyFlow {
+        solarToBattery
+        solarToLoad
+        solarToGrid
+        batteryToLoad
+        gridToLoad
+      }
+      weather {
+        temperature
+        solarRadiation
+        cloudCover
+        humidity
+        windSpeed
+        provider
+        locationName
+        lastUpdated
+        description
+        forecast {
+          date
+          dayOfWeek
+          maxTemp
+          minTemp
+          solarRadiation
+          cloudCover
+          predictedProduction
+          condition
+        }
+      }
+      config {
+        location { lat lon name }
+        solar {
+          capacityKw
+          panelRatedKw
+          panelCount
+          strings
+          panelEfficiencyPercent
+          panelAreaM2
+          spec {
+            _id
+            name
+            manufacturer
+            model
+            ratedPowerKw
+            quantity
+            strings
+            efficiencyPercent
+            areaM2
+            tiltDegrees
+            orientation
+            notes
+            createdAt
+            updatedAt
+          }
+        }
+        battery {
+          capacityKwh
+          moduleCapacityKwh
+          moduleCount
+          maxDepthOfDischargePercent
+          chargeRateKw
+          dischargeRateKw
+          efficiencyPercent
+          spec {
+            _id
+            name
+            manufacturer
+            model
+            capacityKwh
+            quantity
+            maxDepthOfDischargePercent
+            chargeRateKw
+            dischargeRateKw
+            efficiencyPercent
+            chemistry
+            nominalVoltage
+            notes
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+    weather {
+      temperature
+      solarRadiation
+      cloudCover
+      humidity
+      windSpeed
+      provider
+      locationName
+      lastUpdated
+      description
+      forecast {
+        date
+        dayOfWeek
+        maxTemp
+        minTemp
+        solarRadiation
+        cloudCover
+        predictedProduction
+        condition
+      }
+    }
+    predictions {
+      predictions {
+        timestamp
+        hour
+        expectedProduction
+        expectedConsumption
+        confidence
+        blackoutImpact {
+          intervalStart
+          intervalEnd
+          loadFactor
+          productionFactor
+          intensity
+          note
+        }
+      }
+      alerts {
+        id
+        type
+        title
+        message
+        timestamp
+      }
+      recommendations
+      battery {
+        chargeLevel
+        capacity
+        current
+        autonomyHours
+        charging
+        powerFlow
+        projectedMinLevel
+        projectedMaxLevel
+        note
+      }
+      timeline {
+        timestamp
+        production
+        consumption
+        batteryLevel
+        gridExport
+        gridImport
+        efficiency
+        batteryDelta
+      }
+      weather {
+        temperature
+        solarRadiation
+        cloudCover
+        humidity
+        windSpeed
+        provider
+        locationName
+        lastUpdated
+        description
+        forecast {
+          date
+          dayOfWeek
+          maxTemp
+          minTemp
+          solarRadiation
+          cloudCover
+          predictedProduction
+          condition
+        }
+      }
+      timestamp
+      config {
+        location { lat lon name }
+        solar {
+          capacityKw
+          panelRatedKw
+          panelCount
+          strings
+          panelEfficiencyPercent
+          panelAreaM2
+        }
+        battery {
+          capacityKwh
+          moduleCapacityKwh
+          moduleCount
+          maxDepthOfDischargePercent
+          chargeRateKw
+          dischargeRateKw
+          efficiencyPercent
+        }
+      }
+      blackouts {
+        _id
+        date
+        intervals {
+          start
+          end
+          durationMinutes
+        }
+        province
+        municipality
+        notes
+        createdAt
+        updatedAt
+      }
+    }
+    panels {
+      _id
+      name
+      manufacturer
+      model
+      ratedPowerKw
+      quantity
+      strings
+      efficiencyPercent
+      areaM2
+      tiltDegrees
+      orientation
+      notes
+      createdAt
+      updatedAt
+    }
+    batteries {
+      _id
+      name
+      manufacturer
+      model
+      capacityKwh
+      quantity
+      maxDepthOfDischargePercent
+      chargeRateKw
+      dischargeRateKw
+      efficiencyPercent
+      chemistry
+      nominalVoltage
+      notes
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+type DashboardQueryResult = {
+  solar: {
+    current: SolarData;
+    historical: SolarData[];
+    battery: BatteryStatusType;
+    metrics: SystemMetrics;
+    energyFlow: EnergyFlow;
+    weather: WeatherData;
+    config: SystemConfig;
+    timestamp: string;
+    mode: string;
+  };
+  weather: WeatherData;
+  predictions: {
+    predictions: Prediction[];
+    alerts: Alert[];
+    recommendations: string[];
+    battery: BatteryStatusType;
+    timeline: SolarData[];
+    weather: WeatherData;
+    timestamp: string;
+    config: SystemConfig;
+    blackouts: BlackoutSchedule[];
+  };
+  panels: SolarPanelConfig[];
+  batteries: BatteryConfig[];
+};
 
 interface DashboardProps {
   user: User;
@@ -114,37 +429,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   // Fetch all data
   const fetchData = async () => {
     try {
-      const [solarRes, weatherRes, predictionsRes, panelsRes, batteriesRes] = await Promise.all([
-        fetch('/api/solar'),
-        fetch('/api/weather'),
-        fetch('/api/predictions'),
-        fetch('/api/paneles'),
-        fetch('/api/baterias'),
-      ]);
-
-      const solar = await solarRes.json();
-      const weather = await weatherRes.json();
-      const predictions = await predictionsRes.json();
-
-      setSolarData(solar);
-      setWeatherData(weather);
-      setPredictionsData(predictions);
-      if (panelsRes.ok) {
-        const panelPayload = await panelsRes.json();
-        setPanelConfigs(panelPayload.items ?? []);
-      } else {
-        console.warn('No se pudieron obtener los paneles.');
-      }
-      if (batteriesRes.ok) {
-        const batteryPayload = await batteriesRes.json();
-        setBatteryConfigs(batteryPayload.items ?? []);
-      } else {
-        console.warn('No se pudieron obtener las baterías.');
-      }
+      const data = await executeQuery<DashboardQueryResult>(DASHBOARD_QUERY);
+      setSolarData(data.solar);
+      setWeatherData(data.weather);
+      setPredictionsData(data.predictions);
+      setPanelConfigs(data.panels ?? []);
+      setBatteryConfigs(data.batteries ?? []);
       setLastUpdate(new Date());
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching dashboard data:', error);
       setLoading(false);
     }
   };

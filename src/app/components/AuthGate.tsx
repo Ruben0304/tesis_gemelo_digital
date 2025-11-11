@@ -11,16 +11,12 @@ import {
   ChartPieIcon,
 } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
+import { executeMutation } from '@/lib/graphql-client';
 
 type AuthMode = 'login' | 'register';
 
 interface AuthGateProps {
   onAuthenticated: (user: User) => void;
-}
-
-interface AuthResponse {
-  user?: User;
-  error?: string;
 }
 
 const STORAGE_KEY = 'gd_auth_autofill';
@@ -114,27 +110,25 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     setLoading(true);
     setMessage(null);
 
-    const payload: Record<string, unknown> = { email, password };
+    const payload: Record<string, unknown> = {
+      email,
+      password,
+    };
     if (isRegister) {
       payload.name = name.trim() || undefined;
       payload.role = role;
     }
 
     try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const mutation = isRegister ? REGISTER_MUTATION : LOGIN_MUTATION;
+      const response = await executeMutation<{
+        registerUser?: User;
+        loginUser?: User;
+      }>(mutation, { input: cleanInput(payload) });
 
-      const parsed: AuthResponse | User = await response.json();
-      const user = ('user' in parsed ? parsed.user : parsed) as User | undefined;
-
-      if (!response.ok || !user) {
-        const errorMessage =
-          (parsed as AuthResponse).error ?? 'No se pudo completar la autenticación.';
-        throw new Error(errorMessage);
+      const user = (isRegister ? response.registerUser : response.loginUser) as User | undefined;
+      if (!user) {
+        throw new Error('No se pudo completar la autenticación.');
       }
 
       setMessage({
@@ -417,3 +411,31 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     </div>
   );
 }
+const REGISTER_MUTATION = `
+  mutation RegisterUser($input: RegisterInput!) {
+    registerUser(input: $input) {
+      _id
+      email
+      name
+      role
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const LOGIN_MUTATION = `
+  mutation LoginUser($input: LoginInput!) {
+    loginUser(input: $input) {
+      _id
+      email
+      name
+      role
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const cleanInput = <T extends Record<string, unknown>>(values: T) =>
+  Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)) as T;

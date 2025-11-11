@@ -103,7 +103,7 @@ export const PREDICTIONS_QUERY = `
 export const PANELS_QUERY = `
   query Panels {
     panels {
-      id
+      _id
       name
       manufacturer
       model
@@ -124,7 +124,7 @@ export const PANELS_QUERY = `
 export const PANEL_QUERY = `
   query Panel($id: String!) {
     panel(id: $id) {
-      id
+      _id
       name
       manufacturer
       model
@@ -145,7 +145,7 @@ export const PANEL_QUERY = `
 export const BATTERIES_QUERY = `
   query Batteries {
     batteries {
-      id
+      _id
       name
       manufacturer
       model
@@ -167,7 +167,7 @@ export const BATTERIES_QUERY = `
 export const BATTERY_QUERY = `
   query Battery($id: String!) {
     battery(id: $id) {
-      id
+      _id
       name
       manufacturer
       model
@@ -189,7 +189,7 @@ export const BATTERY_QUERY = `
 export const BLACKOUTS_QUERY = `
   query Blackouts($startDate: String, $endDate: String) {
     blackouts(startDate: $startDate, endDate: $endDate) {
-      id
+      _id
       date
       intervals {
         start
@@ -212,7 +212,7 @@ export const BLACKOUTS_QUERY = `
 export const CREATE_PANEL_MUTATION = `
   mutation CreatePanel($input: PanelInput!) {
     createPanel(input: $input) {
-      id
+      _id
       name
       manufacturer
       model
@@ -227,7 +227,7 @@ export const CREATE_PANEL_MUTATION = `
 export const UPDATE_PANEL_MUTATION = `
   mutation UpdatePanel($id: String!, $input: PanelInput!) {
     updatePanel(id: $id, input: $input) {
-      id
+      _id
       name
       manufacturer
       model
@@ -248,7 +248,7 @@ export const DELETE_PANEL_MUTATION = `
 export const CREATE_BATTERY_MUTATION = `
   mutation CreateBattery($input: BatteryInput!) {
     createBattery(input: $input) {
-      id
+      _id
       name
       manufacturer
       model
@@ -262,7 +262,7 @@ export const CREATE_BATTERY_MUTATION = `
 export const UPDATE_BATTERY_MUTATION = `
   mutation UpdateBattery($id: String!, $input: BatteryInput!) {
     updateBattery(id: $id, input: $input) {
-      id
+      _id
       name
       manufacturer
       model
@@ -282,7 +282,7 @@ export const DELETE_BATTERY_MUTATION = `
 export const CREATE_BLACKOUT_MUTATION = `
   mutation CreateBlackout($input: BlackoutInput!) {
     createBlackout(input: $input) {
-      id
+      _id
       date
       intervals {
         start
@@ -297,7 +297,7 @@ export const CREATE_BLACKOUT_MUTATION = `
 export const UPDATE_BLACKOUT_MUTATION = `
   mutation UpdateBlackout($id: String!, $input: BlackoutInput!) {
     updateBlackout(id: $id, input: $input) {
-      id
+      _id
       date
       intervals {
         start

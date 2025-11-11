@@ -5,6 +5,8 @@ Sistema de monitoreo y predicción en tiempo real para microrredes solares. Apli
 ![Next.js](https://img.shields.io/badge/Next.js-15-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-38bdf8)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
+![GraphQL](https://img.shields.io/badge/GraphQL-Strawberry-ff4081)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## 🎯 Características Principales
@@ -21,27 +23,40 @@ Sistema de monitoreo y predicción en tiempo real para microrredes solares. Apli
 
 ```
 tesis_gemelo_digital/
+├── backend/                        # 🆕 Backend FastAPI + GraphQL
+│   ├── app/
+│   │   ├── main.py                 # Aplicación FastAPI
+│   │   ├── schema.py               # Esquema GraphQL (Strawberry)
+│   │   ├── database.py             # Conexión MongoDB
+│   │   └── config.py               # Configuración
+│   ├── venv/                       # Entorno virtual Python
+│   ├── requirements.txt            # Dependencias Python
+│   ├── .env                        # Variables de entorno
+│   └── run.sh                      # Script de inicio
 ├── src/
-│   └── app/
-│       ├── api/                    # API Routes (Next.js)
-│       │   ├── solar/route.ts      # Datos solares y métricas
-│       │   ├── weather/route.ts    # Clima y pronóstico
-│       │   └── predictions/route.ts # Predicciones y alertas
-│       ├── components/             # Componentes React
-│       │   ├── Dashboard.tsx       # Dashboard principal
-│       │   ├── MetricsCards.tsx    # Tarjetas de métricas
-│       │   ├── SolarProductionChart.tsx # Gráfico producción
-│       │   ├── BatteryStatus.tsx   # Indicador batería
-│       │   ├── WeatherWidget.tsx   # Widget clima
-│       │   ├── EnergyFlowDiagram.tsx # Diagrama flujo
-│       │   └── PredictionsPanel.tsx # Panel predicciones
-│       ├── layout.tsx              # Layout raíz
-│       ├── page.tsx                # Página principal
-│       └── globals.css             # Estilos globales
-├── lib/                            # Lógica de negocio
-│   ├── mockData.ts                 # Generador de datos realistas
-│   ├── calculations.ts             # Cálculos de eficiencia
-│   └── predictions.ts              # Algoritmos de predicción
+│   ├── app/
+│   │   ├── api/                    # API Routes (Next.js)
+│   │   │   ├── solar/route.ts      # Datos solares y métricas
+│   │   │   ├── weather/route.ts    # Clima y pronóstico
+│   │   │   └── predictions/route.ts # Predicciones y alertas
+│   │   ├── components/             # Componentes React
+│   │   │   ├── Dashboard.tsx       # Dashboard principal
+│   │   │   ├── MetricsCards.tsx    # Tarjetas de métricas
+│   │   │   ├── SolarProductionChart.tsx # Gráfico producción
+│   │   │   ├── BatteryStatus.tsx   # Indicador batería
+│   │   │   ├── WeatherWidget.tsx   # Widget clima
+│   │   │   ├── EnergyFlowDiagram.tsx # Diagrama flujo
+│   │   │   └── PredictionsPanel.tsx # Panel predicciones
+│   │   ├── layout.tsx              # Layout raíz
+│   │   ├── page.tsx                # Página principal
+│   │   └── globals.css             # Estilos globales
+│   └── lib/                        # Lógica de negocio
+│       ├── mockData.ts             # Generador de datos realistas
+│       ├── calculations.ts         # Cálculos de eficiencia
+│       ├── predictions.ts          # Algoritmos de predicción
+│       ├── graphql-client.ts       # 🆕 Cliente GraphQL (urql)
+│       ├── graphql-queries.ts      # 🆕 Queries y Mutations
+│       └── graphql-hooks.ts        # 🆕 Custom hooks GraphQL
 ├── types/
 │   └── index.ts                    # Interfaces TypeScript
 └── public/
@@ -53,9 +68,13 @@ tesis_gemelo_digital/
 ### Requisitos Previos
 
 - Node.js 18+
+- Python 3.11+
+- MongoDB 6.0+ (opcional, usa datos mock si no está disponible)
 - npm, yarn, pnpm o bun
 
 ### Pasos de Instalación
+
+#### Frontend (Next.js)
 
 ```bash
 # 1. Clonar el repositorio
@@ -65,20 +84,65 @@ cd tesis_gemelo_digital
 # 2. Instalar dependencias
 npm install
 
-# 3. Ejecutar en modo desarrollo
+# 3. Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus configuraciones
+
+# 4. Ejecutar en modo desarrollo
 npm run dev
 
-# 4. Abrir en el navegador
+# 5. Abrir en el navegador
 # http://localhost:3000
+```
+
+#### Backend (FastAPI + GraphQL) 🆕
+
+```bash
+# 1. Navegar al directorio backend
+cd backend
+
+# 2. Crear entorno virtual
+python3 -m venv venv
+source venv/bin/activate  # En Windows: venv\Scripts\activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+
+# 4. Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus configuraciones
+
+# 5. Iniciar servidor
+./run.sh
+# O manualmente:
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 6. Abrir GraphQL Playground
+# http://localhost:8000/graphql
 ```
 
 ### Scripts Disponibles
 
+#### Frontend
 ```bash
 npm run dev      # Servidor de desarrollo
 npm run build    # Build de producción
 npm run start    # Servidor de producción
 ```
+
+#### Backend
+```bash
+./run.sh                    # Iniciar servidor GraphQL
+uvicorn app.main:app --reload  # Con hot-reload
+python -m app.main          # Sin hot-reload
+```
+
+### URLs del Sistema
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **GraphQL Playground**: http://localhost:8000/graphql
+- **Health Check**: http://localhost:8000/health
 
 ## 📊 Modelo de Datos
 

@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import type { BatteryConfig, SolarPanelConfig, SystemConfig } from '@/types';
+import { executeMutation } from '@/lib/graphql-client';
 
 interface DevicesViewProps {
   panels: SolarPanelConfig[];
@@ -100,11 +101,50 @@ const statusToneClasses = {
   neutral: 'bg-slate-100 text-slate-600',
 } as const;
 
+const CREATE_PANEL_MUTATION = `
+  mutation CreatePanel($input: PanelInput!) {
+    createPanel(input: $input) { _id }
+  }
+`;
+
+const UPDATE_PANEL_MUTATION = `
+  mutation UpdatePanel($id: String!, $input: PanelInput!) {
+    updatePanel(id: $id, input: $input) { _id }
+  }
+`;
+
+const DELETE_PANEL_MUTATION = `
+  mutation DeletePanel($id: String!) {
+    deletePanel(id: $id)
+  }
+`;
+
+const CREATE_BATTERY_MUTATION = `
+  mutation CreateBattery($input: BatteryInput!) {
+    createBattery(input: $input) { _id }
+  }
+`;
+
+const UPDATE_BATTERY_MUTATION = `
+  mutation UpdateBattery($id: String!, $input: BatteryInput!) {
+    updateBattery(id: $id, input: $input) { _id }
+  }
+`;
+
+const DELETE_BATTERY_MUTATION = `
+  mutation DeleteBattery($id: String!) {
+    deleteBattery(id: $id)
+  }
+`;
+
 const parseNumber = (value: string): number | undefined => {
   if (value === '') return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+const cleanPayload = <T extends Record<string, unknown>>(values: T) =>
+  Object.fromEntries(Object.entries(values).filter(([, value]) => value !== undefined)) as T;
 
 const formatDateTime = (iso?: string) => {
   if (!iso) return 'Sin registro';
@@ -317,7 +357,7 @@ export default function DevicesView({
     setPanelModalMessage(null);
     setPanelLoading(true);
 
-    const payload = {
+    const payload = cleanPayload({
       name: panelForm.name.trim(),
       manufacturer: panelForm.manufacturer.trim() || undefined,
       model: panelForm.model.trim() || undefined,
@@ -329,22 +369,14 @@ export default function DevicesView({
       tiltDegrees: parseNumber(panelForm.tiltDegrees),
       orientation: panelForm.orientation.trim() || undefined,
       notes: panelForm.notes.trim() || undefined,
-    };
+    });
 
     try {
-      const response = await fetch(
-        panelForm._id ? `/api/paneles/${panelForm._id}` : '/api/paneles',
-        {
-          method: panelForm._id ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? 'No se pudo guardar el panel.');
+      if (panelForm._id) {
+        await executeMutation(UPDATE_PANEL_MUTATION, { id: panelForm._id, input: payload });
+      } else {
+        await executeMutation(CREATE_PANEL_MUTATION, { input: payload });
       }
-
       setPanelMessage({
         type: 'success',
         text: panelForm._id
@@ -371,7 +403,7 @@ export default function DevicesView({
     setBatteryModalMessage(null);
     setBatteryLoading(true);
 
-    const payload = {
+    const payload = cleanPayload({
       name: batteryForm.name.trim(),
       manufacturer: batteryForm.manufacturer.trim() || undefined,
       model: batteryForm.model.trim() || undefined,
@@ -384,22 +416,14 @@ export default function DevicesView({
       chemistry: batteryForm.chemistry.trim() || undefined,
       nominalVoltage: parseNumber(batteryForm.nominalVoltage),
       notes: batteryForm.notes.trim() || undefined,
-    };
+    });
 
     try {
-      const response = await fetch(
-        batteryForm._id ? `/api/baterias/${batteryForm._id}` : '/api/baterias',
-        {
-          method: batteryForm._id ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      );
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? 'No se pudo guardar la batería.');
+      if (batteryForm._id) {
+        await executeMutation(UPDATE_BATTERY_MUTATION, { id: batteryForm._id, input: payload });
+      } else {
+        await executeMutation(CREATE_BATTERY_MUTATION, { input: payload });
       }
-
       setBatteryMessage({
         type: 'success',
         text: batteryForm._id
@@ -431,11 +455,7 @@ export default function DevicesView({
     }
     if (!window.confirm('¿Desea eliminar este panel?')) return;
     try {
-      const response = await fetch(`/api/paneles/${panel._id}`, { method: 'DELETE' });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? 'No se pudo eliminar el panel.');
-      }
+      await executeMutation(DELETE_PANEL_MUTATION, { id: panel._id });
       setPanelMessage({ type: 'success', text: 'Panel eliminado correctamente.' });
       if (detailModal?.type === 'panel' && detailModal.data._id === panel._id) {
         setDetailModal(null);
@@ -460,11 +480,7 @@ export default function DevicesView({
     }
     if (!window.confirm('¿Desea eliminar esta batería?')) return;
     try {
-      const response = await fetch(`/api/baterias/${battery._id}`, { method: 'DELETE' });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error ?? 'No se pudo eliminar la batería.');
-      }
+      await executeMutation(DELETE_BATTERY_MUTATION, { id: battery._id });
       setBatteryMessage({ type: 'success', text: 'Batería eliminada correctamente.' });
       if (detailModal?.type === 'battery' && detailModal.data._id === battery._id) {
         setDetailModal(null);
