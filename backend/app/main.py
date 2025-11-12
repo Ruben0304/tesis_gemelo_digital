@@ -11,6 +11,7 @@ from app.config import settings
 from app.database import get_database, close_database
 from app.services.panel_classifier_service import panel_classifier_service
 from app.services.ml_model_service import ml_model_service
+from app.services.ml_consumption_service import ml_consumption_service
 
 
 @asynccontextmanager
@@ -36,6 +37,14 @@ async def lifespan(app: FastAPI):
         print(f"⚠️  Warning: Could not load solar production prediction model: {e}")
         print("   Solar production prediction endpoint will not be available.")
         print("   Please run the training notebook: backend/notebooks/solar_production_prediction.ipynb")
+
+    # Load ML model for consumption prediction
+    try:
+        ml_consumption_service.load_model()
+    except Exception as e:
+        print(f"⚠️  Warning: Could not load consumption prediction model: {e}")
+        print("   Consumption prediction endpoint will not be available.")
+        print("   Please run the training notebook: backend/notebooks/06_prediccion_consumo.ipynb")
 
     yield
     # Shutdown

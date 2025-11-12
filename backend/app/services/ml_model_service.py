@@ -64,6 +64,8 @@ class MLModelService:
                 print(f"  Test RMSE: {self.metadata.get('test_rmse'):.4f} kW")
                 print(f"  Test R²: {self.metadata.get('test_r2'):.4f}")
                 print(f"  Features: {len(self.metadata.get('features', []))}")
+                if self.metadata.get("reference_capacity_kw"):
+                    print(f"  Reference capacity: {self.metadata['reference_capacity_kw']} kW")
             else:
                 print(f"⚠️  Warning: Metadata file not found: {metadata_path}")
                 self.metadata = {
@@ -153,7 +155,20 @@ class MLModelService:
             "features": self.metadata.get("features") if self.metadata else [],
             "training_date": self.metadata.get("train_date") if self.metadata else None,
             "requires_scaling": self.metadata.get("requires_scaling") if self.metadata else False,
+            "reference_capacity_kw": self.metadata.get("reference_capacity_kw") if self.metadata else None,
         }
+
+    def get_reference_capacity_kw(self) -> Optional[float]:
+        """
+        Return the dataset reference capacity used during training, if available.
+        """
+        if not self.metadata:
+            return None
+        reference_capacity = self.metadata.get("reference_capacity_kw")
+        try:
+            return float(reference_capacity) if reference_capacity is not None else None
+        except (TypeError, ValueError):
+            return None
 
 
 # Global singleton instance

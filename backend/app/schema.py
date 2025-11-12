@@ -3,7 +3,7 @@ GraphQL schema exposing the migrated Digital Twin functionality.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import strawberry
 
@@ -39,6 +39,13 @@ from app.services.ml_prediction_service import (
     predict_for_date_range,
 )
 from app.services.ml_model_service import ml_model_service
+from app.services.consumption_prediction_service import (
+    predict_consumption,
+    predict_consumption_next_hours,
+    predict_consumption_for_date_range,
+    predict_consumption_for_specific_hours,
+)
+from app.services.ml_consumption_service import ml_consumption_service
 
 
 # ============================================================================
@@ -312,6 +319,27 @@ class MLModelInfoType:
     features: List[str]
     training_date: Optional[str]
     requires_scaling: Optional[bool]
+    reference_capacity_kw: Optional[float]
+    message: Optional[str]
+
+
+@strawberry.type
+class MLConsumptionPredictionType:
+    datetime: str
+    consumption_kw: float
+
+
+@strawberry.type
+class MLConsumptionModelInfoType:
+    loaded: bool
+    model_name: Optional[str]
+    test_rmse: Optional[float]
+    test_r2: Optional[float]
+    test_mae: Optional[float]
+    features: List[str]
+    training_date: Optional[str]
+    campus_id_default: Optional[int]
+    meter_id_default: Optional[int]
     message: Optional[str]
 
 
@@ -422,6 +450,46 @@ def _map_blackout(data: dict) -> BlackoutType:
     )
 
 
+def _get_real_capacity_kw_from_config(config: Optional[dict]) -> Optional[float]:
+    if not config:
+        return None
+    solar_cfg = config.get("solar") or {}
+    capacity = solar_cfg.get("capacityKw")
+    try:
+        return float(capacity) if capacity is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _scale_ml_predictions(
+    predictions: List[Dict[str, Any]],
+    capacity_kw: Optional[float] = None,
+) -> List[Dict[str, Any]]:
+    reference_capacity_kw = ml_model_service.get_reference_capacity_kw()
+    if not reference_capacity_kw or reference_capacity_kw <= 0:
+        return predictions
+
+    target_capacity_kw = capacity_kw
+    if target_capacity_kw is None:
+        try:
+            config = get_system_config()
+        except Exception:
+            config = None
+        target_capacity_kw = _get_real_capacity_kw_from_config(config)
+
+    if not target_capacity_kw or target_capacity_kw <= 0:
+        return predictions
+
+    scale_factor = target_capacity_kw / reference_capacity_kw
+    scaled_predictions: List[Dict[str, Any]] = []
+    for pred in predictions:
+        scaled_predictions.append({
+            **pred,
+            "production_kw": round(float(pred["production_kw"]) * scale_factor, 2),
+        })
+    return scaled_predictions
+
+
 # ============================================================================
 # Queries
 # ============================================================================
@@ -525,12 +593,15 @@ class Query:
             List of predictions with production_kw and weather features
         """
         # Get system config for location if not provided
+        capacity_kw = None
         if lat is None or lon is None:
             config = get_system_config()
             lat = lat or config["location"]["lat"]
             lon = lon or config["location"]["lon"]
+            capacity_kw = _get_real_capacity_kw_from_config(config)
 
         predictions = await predict_solar_production(datetimes, lat, lon)
+        predictions = _scale_ml_predictions(predictions, capacity_kw)
 
         return [
             MLPredictionType(
@@ -560,12 +631,15 @@ class Query:
             List of hourly predictions
         """
         # Get system config for location if not provided
+        capacity_kw = None
         if lat is None or lon is None:
             config = get_system_config()
             lat = lat or config["location"]["lat"]
             lon = lon or config["location"]["lon"]
+            capacity_kw = _get_real_capacity_kw_from_config(config)
 
         predictions = await predict_next_hours(hours, lat, lon)
+        predictions = _scale_ml_predictions(predictions, capacity_kw)
 
         return [
             MLPredictionType(
@@ -597,12 +671,15 @@ class Query:
             List of hourly predictions for the entire date range
         """
         # Get system config for location if not provided
+        capacity_kw = None
         if lat is None or lon is None:
             config = get_system_config()
             lat = lat or config["location"]["lat"]
             lon = lon or config["location"]["lon"]
+            capacity_kw = _get_real_capacity_kw_from_config(config)
 
         predictions = await predict_for_date_range(start_date, end_date, lat, lon)
+        predictions = _scale_ml_predictions(predictions, capacity_kw)
 
         return [
             MLPredictionType(
@@ -634,13 +711,14 @@ class Query:
             List of predictions with production_kw and weather features
         """
         from .services.ml_prediction_service import predict_for_specific_hours
-        from .services.system_config import get_system_config
 
         config = get_system_config()
         latitude = lat if lat is not None else config["location"]["lat"]
         longitude = lon if lon is not None else config["location"]["lon"]
+        capacity_kw = _get_real_capacity_kw_from_config(config)
 
         predictions = await predict_for_specific_hours(date, hours, latitude, longitude)
+        predictions = _scale_ml_predictions(predictions, capacity_kw)
 
         return [
             MLPredictionType(
@@ -675,6 +753,145 @@ class Query:
             features=info.get("features", []),
             training_date=info.get("training_date"),
             requires_scaling=info.get("requires_scaling"),
+            reference_capacity_kw=info.get("reference_capacity_kw"),
+            message=info.get("message"),
+        )
+
+    @strawberry.field
+    async def ml_predict_consumption(
+        self,
+        datetimes: List[str],
+        campus_id: Optional[int] = None,
+        meter_id: Optional[int] = None,
+    ) -> List[MLConsumptionPredictionType]:
+        """
+        Predict energy consumption using ML model for specific datetimes.
+
+        Args:
+            datetimes: List of ISO datetime strings (e.g., ["2025-01-15T13:00:00", "2025-01-15T14:00:00"])
+            campus_id: Campus ID (optional, defaults to model's default)
+            meter_id: Meter ID (optional, defaults to model's default)
+
+        Returns:
+            List of consumption predictions in kW
+        """
+        predictions = await predict_consumption(datetimes, campus_id, meter_id)
+
+        return [
+            MLConsumptionPredictionType(
+                datetime=pred["datetime"],
+                consumption_kw=pred["consumption_kw"],
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    async def ml_predict_consumption_next_hours(
+        self,
+        hours: int = 24,
+        campus_id: Optional[int] = None,
+        meter_id: Optional[int] = None,
+    ) -> List[MLConsumptionPredictionType]:
+        """
+        Predict energy consumption for the next N hours.
+
+        Args:
+            hours: Number of hours to predict (default: 24)
+            campus_id: Campus ID (optional, defaults to model's default)
+            meter_id: Meter ID (optional, defaults to model's default)
+
+        Returns:
+            List of hourly consumption predictions
+        """
+        predictions = await predict_consumption_next_hours(hours, campus_id, meter_id)
+
+        return [
+            MLConsumptionPredictionType(
+                datetime=pred["datetime"],
+                consumption_kw=pred["consumption_kw"],
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    async def ml_predict_consumption_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        campus_id: Optional[int] = None,
+        meter_id: Optional[int] = None,
+    ) -> List[MLConsumptionPredictionType]:
+        """
+        Predict energy consumption for all hours in a date range.
+
+        Args:
+            start_date: Start date (ISO format: 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS')
+            end_date: End date (ISO format: 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS')
+            campus_id: Campus ID (optional, defaults to model's default)
+            meter_id: Meter ID (optional, defaults to model's default)
+
+        Returns:
+            List of hourly consumption predictions for the entire date range
+        """
+        predictions = await predict_consumption_for_date_range(start_date, end_date, campus_id, meter_id)
+
+        return [
+            MLConsumptionPredictionType(
+                datetime=pred["datetime"],
+                consumption_kw=pred["consumption_kw"],
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    async def ml_predict_consumption_for_hours(
+        self,
+        date: str,
+        hours: List[int],
+        campus_id: Optional[int] = None,
+        meter_id: Optional[int] = None,
+    ) -> List[MLConsumptionPredictionType]:
+        """
+        Predict energy consumption for specific hours of a given day.
+
+        Args:
+            date: Date in YYYY-MM-DD format
+            hours: List of hours (0-23) to predict for (e.g., [7, 8, 9, ..., 22] for 7am-10pm)
+            campus_id: Campus ID (optional, defaults to model's default)
+            meter_id: Meter ID (optional, defaults to model's default)
+
+        Returns:
+            List of consumption predictions for the specified hours
+        """
+        predictions = await predict_consumption_for_specific_hours(date, hours, campus_id, meter_id)
+
+        return [
+            MLConsumptionPredictionType(
+                datetime=pred["datetime"],
+                consumption_kw=pred["consumption_kw"],
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    def ml_consumption_model_info(self) -> MLConsumptionModelInfoType:
+        """
+        Get information about the loaded consumption ML model.
+
+        Returns:
+            Model metadata including accuracy metrics and status
+        """
+        info = ml_consumption_service.get_model_info()
+        return MLConsumptionModelInfoType(
+            loaded=info.get("loaded", False),
+            model_name=info.get("model_name"),
+            test_rmse=info.get("test_rmse"),
+            test_r2=info.get("test_r2"),
+            test_mae=info.get("test_mae"),
+            features=info.get("features", []),
+            training_date=info.get("training_date"),
+            campus_id_default=info.get("campus_id_default"),
+            meter_id_default=info.get("meter_id_default"),
             message=info.get("message"),
         )
 
