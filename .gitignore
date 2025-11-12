@@ -48,3 +48,5 @@ backend/.venv/
 backend/env/
 backend/.env
 backend/*.egg-info/
+backend/notebooks/
+backend/models/

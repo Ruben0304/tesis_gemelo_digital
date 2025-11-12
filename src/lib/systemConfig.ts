@@ -17,16 +17,16 @@ function aggregateSolar(panels: SolarPanelConfig[]): SystemConfig['solar'] {
     0
   );
   const totalCount = panels.reduce((acc, panel) => acc + panel.quantity, 0);
-  const totalStrings = panels.reduce((acc, panel) => acc + panel.strings, 0);
+  const totalStrings = panels.reduce((acc, panel) => acc + panel.quantity, 0);
   const primary = panels[0];
 
   return {
     capacityKw: round(totalCapacity),
     panelRatedKw: primary.ratedPowerKw,
     panelCount: totalCount,
-    strings: totalStrings,
-    panelEfficiencyPercent: primary.efficiencyPercent,
-    panelAreaM2: primary.areaM2,
+    strings: totalStrings || undefined,
+    panelEfficiencyPercent: undefined,
+    panelAreaM2: undefined,
     spec: primary,
   };
 }
@@ -47,10 +47,10 @@ function aggregateBattery(batteries: BatteryConfig[]): SystemConfig['battery'] {
     capacityKwh: round(totalCapacity),
     moduleCapacityKwh: primary.capacityKwh,
     moduleCount: totalModules,
-    maxDepthOfDischargePercent: primary.maxDepthOfDischargePercent,
-    chargeRateKw: primary.chargeRateKw,
-    dischargeRateKw: primary.dischargeRateKw,
-    efficiencyPercent: primary.efficiencyPercent,
+    maxDepthOfDischargePercent: undefined,
+    chargeRateKw: undefined,
+    dischargeRateKw: undefined,
+    efficiencyPercent: undefined,
     spec: primary,
   };
 }

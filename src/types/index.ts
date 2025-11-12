@@ -87,35 +87,22 @@ export interface Alert {
 // Configuration for the microgrid system
 export interface SolarPanelConfig {
   _id?: string;
-  name: string;
-  manufacturer?: string;
+  manufacturer: string;
   model?: string;
   ratedPowerKw: number;         // kW por panel
   quantity: number;             // Número total de paneles instalados
-  strings: number;              // Cantidad de strings activos
-  efficiencyPercent?: number;   // % de eficiencia nominal
-  areaM2?: number;              // Área por panel en m²
   tiltDegrees?: number;         // Ángulo de inclinación
   orientation?: string;         // Orientación cardinal
-  notes?: string;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface BatteryConfig {
   _id?: string;
-  name: string;
-  manufacturer?: string;
+  manufacturer: string;
   model?: string;
-  capacityKwh: number;          // kWh por unidad
+  capacityKwh: number;          // Capacidad por módulo
   quantity: number;             // Número de módulos instalados
-  maxDepthOfDischargePercent?: number; // % DoD permitido
-  chargeRateKw?: number;        // kW de carga máxima
-  dischargeRateKw?: number;     // kW de descarga máxima
-  efficiencyPercent?: number;   // % de eficiencia redox/conversión
-  chemistry?: string;           // Química (LiFePO4, etc.)
-  nominalVoltage?: number;      // Voltaje nominal del banco
-  notes?: string;
   createdAt?: string;
   updatedAt?: string;
 }

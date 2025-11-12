@@ -11,6 +11,7 @@ import {
 import {
   BatteryCharging,
   Eye,
+  Image,
   Info,
   Layers,
   Pencil,
@@ -32,33 +33,20 @@ type StatusMessage = { type: 'success' | 'error'; text: string } | null;
 
 interface PanelFormState {
   _id?: string;
-  name: string;
   manufacturer: string;
   model: string;
   ratedPowerKw: string;
   quantity: string;
-  strings: string;
-  efficiencyPercent: string;
-  areaM2: string;
   tiltDegrees: string;
   orientation: string;
-  notes: string;
 }
 
 interface BatteryFormState {
   _id?: string;
-  name: string;
   manufacturer: string;
   model: string;
   capacityKwh: string;
   quantity: string;
-  maxDepthOfDischargePercent: string;
-  chargeRateKw: string;
-  dischargeRateKw: string;
-  efficiencyPercent: string;
-  chemistry: string;
-  nominalVoltage: string;
-  notes: string;
 }
 
 type DetailModalState =
@@ -67,32 +55,19 @@ type DetailModalState =
   | null;
 
 const emptyPanelForm: PanelFormState = {
-  name: '',
   manufacturer: '',
   model: '',
   ratedPowerKw: '',
   quantity: '',
-  strings: '',
-  efficiencyPercent: '',
-  areaM2: '',
   tiltDegrees: '',
   orientation: '',
-  notes: '',
 };
 
 const emptyBatteryForm: BatteryFormState = {
-  name: '',
   manufacturer: '',
   model: '',
   capacityKwh: '',
   quantity: '',
-  maxDepthOfDischargePercent: '',
-  chargeRateKw: '',
-  dischargeRateKw: '',
-  efficiencyPercent: '',
-  chemistry: '',
-  nominalVoltage: '',
-  notes: '',
 };
 
 const statusToneClasses = {
@@ -162,42 +137,36 @@ const formatDateTime = (iso?: string) => {
   }
 };
 
+const formatPanelTitle = (panel: SolarPanelConfig) => {
+  const maker = panel.manufacturer?.trim();
+  const model = panel.model?.trim();
+  if (maker && model) return `${maker} ${model}`;
+  return maker || model || 'Panel sin datos';
+};
+
+const formatBatteryTitle = (battery: BatteryConfig) => {
+  const maker = battery.manufacturer?.trim();
+  const model = battery.model?.trim();
+  if (maker && model) return `${maker} ${model}`;
+  return maker || model || 'Batería sin datos';
+};
+
 const toPanelFormState = (panel: SolarPanelConfig): PanelFormState => ({
   _id: panel._id,
-  name: panel.name ?? '',
   manufacturer: panel.manufacturer ?? '',
   model: panel.model ?? '',
   ratedPowerKw: panel.ratedPowerKw !== undefined ? panel.ratedPowerKw.toString() : '',
   quantity: panel.quantity !== undefined ? panel.quantity.toString() : '',
-  strings: panel.strings !== undefined ? panel.strings.toString() : '',
-  efficiencyPercent:
-    panel.efficiencyPercent !== undefined ? panel.efficiencyPercent.toString() : '',
-  areaM2: panel.areaM2 !== undefined ? panel.areaM2.toString() : '',
   tiltDegrees: panel.tiltDegrees !== undefined ? panel.tiltDegrees.toString() : '',
   orientation: panel.orientation ?? '',
-  notes: panel.notes ?? '',
 });
 
 const toBatteryFormState = (battery: BatteryConfig): BatteryFormState => ({
   _id: battery._id,
-  name: battery.name ?? '',
   manufacturer: battery.manufacturer ?? '',
   model: battery.model ?? '',
   capacityKwh: battery.capacityKwh !== undefined ? battery.capacityKwh.toString() : '',
   quantity: battery.quantity !== undefined ? battery.quantity.toString() : '',
-  maxDepthOfDischargePercent:
-    battery.maxDepthOfDischargePercent !== undefined
-      ? battery.maxDepthOfDischargePercent.toString()
-      : '',
-  chargeRateKw: battery.chargeRateKw !== undefined ? battery.chargeRateKw.toString() : '',
-  dischargeRateKw:
-    battery.dischargeRateKw !== undefined ? battery.dischargeRateKw.toString() : '',
-  efficiencyPercent:
-    battery.efficiencyPercent !== undefined ? battery.efficiencyPercent.toString() : '',
-  chemistry: battery.chemistry ?? '',
-  nominalVoltage:
-    battery.nominalVoltage !== undefined ? battery.nominalVoltage.toString() : '',
-  notes: battery.notes ?? '',
 });
 
 export default function DevicesView({
@@ -221,6 +190,17 @@ export default function DevicesView({
   const [batteryLoading, setBatteryLoading] = useState(false);
 
   const [detailModal, setDetailModal] = useState<DetailModalState>(null);
+
+  const [cleanlinessModalOpen, setCleanlinessModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [cleanlinessLoading, setCleanlinessLoading] = useState(false);
+  const [cleanlinessResult, setCleanlinessResult] = useState<{
+    clasificacion: 'limpio' | 'sucio';
+    porcentaje_limpio: number;
+    porcentaje_sucio: number;
+  } | null>(null);
+  const [cleanlinessError, setCleanlinessError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!panelMessage) return;
@@ -265,21 +245,14 @@ export default function DevicesView({
   const buildPanelSpecs = (panel: SolarPanelConfig) =>
     [
       {
-        label: 'Potencia por panel',
+        label: 'Potencia nominal',
         value:
           panel.ratedPowerKw !== undefined ? `${panel.ratedPowerKw.toFixed(2)} kW` : 'Sin dato',
       },
       {
-        label: 'Paneles instalados',
+        label: 'Unidades instaladas',
         value: panel.quantity !== undefined ? `${panel.quantity}` : 'Sin dato',
       },
-      {
-        label: 'Strings activos',
-        value: panel.strings !== undefined ? `${panel.strings}` : 'Sin dato',
-      },
-      panel.efficiencyPercent !== undefined
-        ? { label: 'Eficiencia nominal', value: `${panel.efficiencyPercent.toFixed(1)} %` }
-        : null,
       panel.orientation
         ? {
             label: 'Orientación',
@@ -294,29 +267,16 @@ export default function DevicesView({
   const buildBatterySpecs = (battery: BatteryConfig) =>
     [
       {
-        label: 'Capacidad total',
+        label: 'Capacidad por módulo',
         value:
           battery.capacityKwh !== undefined
             ? `${battery.capacityKwh.toFixed(1)} kWh`
             : 'Sin dato',
       },
       {
-        label: 'Módulos instalados',
+        label: 'Unidades instaladas',
         value: battery.quantity !== undefined ? `${battery.quantity}` : 'Sin dato',
       },
-      battery.maxDepthOfDischargePercent !== undefined
-        ? {
-            label: 'Profundidad de descarga',
-            value: `${battery.maxDepthOfDischargePercent.toFixed(0)} %`,
-          }
-        : null,
-      battery.chargeRateKw !== undefined
-        ? { label: 'Velocidad de carga', value: `${battery.chargeRateKw.toFixed(1)} kW` }
-        : null,
-      battery.dischargeRateKw !== undefined
-        ? { label: 'Velocidad de descarga', value: `${battery.dischargeRateKw.toFixed(1)} kW` }
-        : null,
-      battery.chemistry ? { label: 'Química', value: battery.chemistry } : null,
     ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   const openPanelModal = (mode: 'create' | 'edit', panel?: SolarPanelConfig) => {
@@ -358,17 +318,12 @@ export default function DevicesView({
     setPanelLoading(true);
 
     const payload = cleanPayload({
-      name: panelForm.name.trim(),
-      manufacturer: panelForm.manufacturer.trim() || undefined,
+      manufacturer: panelForm.manufacturer.trim(),
       model: panelForm.model.trim() || undefined,
       ratedPowerKw: parseNumber(panelForm.ratedPowerKw),
       quantity: parseNumber(panelForm.quantity),
-      strings: parseNumber(panelForm.strings),
-      efficiencyPercent: parseNumber(panelForm.efficiencyPercent),
-      areaM2: parseNumber(panelForm.areaM2),
       tiltDegrees: parseNumber(panelForm.tiltDegrees),
       orientation: panelForm.orientation.trim() || undefined,
-      notes: panelForm.notes.trim() || undefined,
     });
 
     try {
@@ -404,18 +359,10 @@ export default function DevicesView({
     setBatteryLoading(true);
 
     const payload = cleanPayload({
-      name: batteryForm.name.trim(),
-      manufacturer: batteryForm.manufacturer.trim() || undefined,
+      manufacturer: batteryForm.manufacturer.trim(),
       model: batteryForm.model.trim() || undefined,
       capacityKwh: parseNumber(batteryForm.capacityKwh),
       quantity: parseNumber(batteryForm.quantity),
-      maxDepthOfDischargePercent: parseNumber(batteryForm.maxDepthOfDischargePercent),
-      chargeRateKw: parseNumber(batteryForm.chargeRateKw),
-      dischargeRateKw: parseNumber(batteryForm.dischargeRateKw),
-      efficiencyPercent: parseNumber(batteryForm.efficiencyPercent),
-      chemistry: batteryForm.chemistry.trim() || undefined,
-      nominalVoltage: parseNumber(batteryForm.nominalVoltage),
-      notes: batteryForm.notes.trim() || undefined,
     });
 
     try {
@@ -495,66 +442,68 @@ export default function DevicesView({
     }
   };
 
-  const panelDetailRows = (panel: SolarPanelConfig) =>
-    [
-      {
-        label: 'Potencia por panel',
-        value:
-          panel.ratedPowerKw !== undefined ? `${panel.ratedPowerKw.toFixed(2)} kW` : 'Sin dato',
-      },
-      {
-        label: 'Paneles instalados',
-        value: panel.quantity !== undefined ? `${panel.quantity}` : 'Sin dato',
-      },
-      {
-        label: 'Strings activos',
-        value: panel.strings !== undefined ? `${panel.strings}` : 'Sin dato',
-      },
-      panel.efficiencyPercent !== undefined
-        ? { label: 'Eficiencia nominal', value: `${panel.efficiencyPercent.toFixed(1)} %` }
-        : null,
-      panel.areaM2 !== undefined
-        ? { label: 'Área por panel', value: `${panel.areaM2.toFixed(2)} m²` }
-        : null,
-      panel.tiltDegrees !== undefined
-        ? { label: 'Inclinación', value: `${panel.tiltDegrees.toFixed(1)}°` }
-        : null,
-      panel.orientation ? { label: 'Orientación', value: panel.orientation } : null,
-    ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const panelDetailRows = (panel: SolarPanelConfig) => buildPanelSpecs(panel);
 
-  const batteryDetailRows = (battery: BatteryConfig) =>
-    [
-      {
-        label: 'Capacidad total',
-        value:
-          battery.capacityKwh !== undefined
-            ? `${battery.capacityKwh.toFixed(1)} kWh`
-            : 'Sin dato',
-      },
-      {
-        label: 'Módulos instalados',
-        value: battery.quantity !== undefined ? `${battery.quantity}` : 'Sin dato',
-      },
-      battery.maxDepthOfDischargePercent !== undefined
-        ? {
-            label: 'Profundidad de descarga',
-            value: `${battery.maxDepthOfDischargePercent.toFixed(0)} %`,
-          }
-        : null,
-      battery.chargeRateKw !== undefined
-        ? { label: 'Velocidad de carga', value: `${battery.chargeRateKw.toFixed(1)} kW` }
-        : null,
-      battery.dischargeRateKw !== undefined
-        ? { label: 'Velocidad de descarga', value: `${battery.dischargeRateKw.toFixed(1)} kW` }
-        : null,
-      battery.efficiencyPercent !== undefined
-        ? { label: 'Eficiencia', value: `${battery.efficiencyPercent.toFixed(0)} %` }
-        : null,
-      battery.nominalVoltage !== undefined
-        ? { label: 'Voltaje nominal', value: `${battery.nominalVoltage.toFixed(1)} V` }
-        : null,
-      battery.chemistry ? { label: 'Química', value: battery.chemistry } : null,
-    ].filter(Boolean) as Array<{ label: string; value: string }>;
+  const batteryDetailRows = (battery: BatteryConfig) => buildBatterySpecs(battery);
+
+  const openCleanlinessModal = () => {
+    setCleanlinessModalOpen(true);
+    setSelectedImage(null);
+    setImagePreview(null);
+    setCleanlinessResult(null);
+    setCleanlinessError(null);
+  };
+
+  const handleImageSelect = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      setCleanlinessResult(null);
+      setCleanlinessError(null);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const analyzePanel = async () => {
+    if (!selectedImage) {
+      setCleanlinessError('Por favor seleccione una imagen');
+      return;
+    }
+
+    setCleanlinessLoading(true);
+    setCleanlinessError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedImage);
+
+      const response = await fetch('http://localhost:8000/api/classify-panel', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Error al analizar la imagen');
+      }
+
+      const result = await response.json();
+      setCleanlinessResult(result);
+    } catch (error) {
+      console.error('Error analyzing panel:', error);
+      setCleanlinessError(
+        error instanceof Error ? error.message : 'Error inesperado al analizar la imagen'
+      );
+    } finally {
+      setCleanlinessLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -581,14 +530,24 @@ export default function DevicesView({
               digital.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => openPanelModal('create')}
-            className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.02]"
-          >
-            <Plus className="h-4 w-4" />
-            Agregar panel
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={openCleanlinessModal}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-amber-500 bg-white px-4 py-2 text-sm font-semibold text-amber-700 shadow-sm transition-all hover:bg-amber-50"
+            >
+              <Image className="h-4 w-4" />
+              Comprobar limpieza
+            </button>
+            <button
+              type="button"
+              onClick={() => openPanelModal('create')}
+              className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition-transform hover:scale-[1.02]"
+            >
+              <Plus className="h-4 w-4" />
+              Agregar panel
+            </button>
+          </div>
         </header>
 
         {panelMessage && (
@@ -628,13 +587,13 @@ export default function DevicesView({
               const specs = buildPanelSpecs(panel);
               return (
                 <article
-                  key={panel._id ?? panel.name}
+                  key={panel._id ?? `${panel.manufacturer}-${panel.model ?? 'sin-modelo'}`}
                   className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-white/90 p-5 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.45)]"
                 >
                   <header className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold text-slate-900">
-                        {panel.name || 'Panel sin nombre'}
+                        {formatPanelTitle(panel)}
                       </h3>
                       <p className="text-sm text-slate-500">
                         {panel.manufacturer ?? 'Fabricante desconocido'}
@@ -650,7 +609,10 @@ export default function DevicesView({
 
                   <dl className="grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
                     {specs.map((spec) => (
-                      <div key={`${panel._id ?? panel.name}-${spec.label}`} className="rounded-2xl bg-slate-50/70 px-3 py-2">
+                      <div
+                        key={`${panel._id ?? `${panel.manufacturer}-${panel.model ?? 'sin-modelo'}`}-${spec.label}`}
+                        className="rounded-2xl bg-slate-50/70 px-3 py-2"
+                      >
                         <dt className="text-xs uppercase tracking-wide text-slate-400">
                           {spec.label}
                         </dt>
@@ -756,13 +718,13 @@ export default function DevicesView({
               const specs = buildBatterySpecs(battery);
               return (
                 <article
-                  key={battery._id ?? battery.name}
+                  key={battery._id ?? `${battery.manufacturer}-${battery.model ?? 'sin-modelo'}`}
                   className="flex flex-col gap-4 rounded-3xl border border-slate-100 bg-white/90 p-5 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.45)]"
                 >
                   <header className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold text-slate-900">
-                        {battery.name || 'Batería sin nombre'}
+                        {formatBatteryTitle(battery)}
                       </h3>
                       <p className="text-sm text-slate-500">
                         {battery.manufacturer ?? 'Proveedor desconocido'}
@@ -778,7 +740,10 @@ export default function DevicesView({
 
                   <dl className="grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
                     {specs.map((spec) => (
-                      <div key={`${battery._id ?? battery.name}-${spec.label}`} className="rounded-2xl bg-slate-50/70 px-3 py-2">
+                      <div
+                        key={`${battery._id ?? `${battery.manufacturer}-${battery.model ?? 'sin-modelo'}`}-${spec.label}`}
+                        className="rounded-2xl bg-slate-50/70 px-3 py-2"
+                      >
                         <dt className="text-xs uppercase tracking-wide text-slate-400">
                           {spec.label}
                         </dt>
@@ -848,29 +813,22 @@ export default function DevicesView({
           )}
           <form onSubmit={handlePanelSubmit} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nombre comercial" required>
+              <Field label="Fabricante" required>
                 <input
                   required
-                  value={panelForm.name}
-                  onChange={handlePanelInput('name')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </Field>
-              <Field label="Fabricante">
-                <input
                   value={panelForm.manufacturer}
                   onChange={handlePanelInput('manufacturer')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </Field>
-              <Field label="Modelo">
+              <Field label="Modelo (opcional)">
                 <input
                   value={panelForm.model}
                   onChange={handlePanelInput('model')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </Field>
-              <Field label="Potencia por panel (kW)" required>
+              <Field label="Potencia (kW)" required>
                 <input
                   type="number"
                   min="0"
@@ -881,43 +839,13 @@ export default function DevicesView({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </Field>
-              <Field label="Paneles instalados" required>
+              <Field label="Cantidad instalada" required>
                 <input
                   type="number"
                   min="1"
                   required
                   value={panelForm.quantity}
                   onChange={handlePanelInput('quantity')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </Field>
-              <Field label="Strings activos" required>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={panelForm.strings}
-                  onChange={handlePanelInput('strings')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </Field>
-              <Field label="Eficiencia nominal (%)">
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={panelForm.efficiencyPercent}
-                  onChange={handlePanelInput('efficiencyPercent')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </Field>
-              <Field label="Área por panel (m²)">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={panelForm.areaM2}
-                  onChange={handlePanelInput('areaM2')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </Field>
@@ -931,18 +859,11 @@ export default function DevicesView({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </Field>
-              <Field label="Orientación">
+              <Field label="Orientación (opcional)">
                 <input
                   value={panelForm.orientation}
                   onChange={handlePanelInput('orientation')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </Field>
-              <Field label="Observaciones" className="sm:col-span-2">
-                <textarea
-                  value={panelForm.notes}
-                  onChange={handlePanelInput('notes')}
-                  className="w-full min-h-[96px] rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </Field>
             </div>
@@ -993,29 +914,22 @@ export default function DevicesView({
           )}
           <form onSubmit={handleBatterySubmit} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nombre comercial" required>
+              <Field label="Fabricante" required>
                 <input
                   required
-                  value={batteryForm.name}
-                  onChange={handleBatteryInput('name')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Fabricante">
-                <input
                   value={batteryForm.manufacturer}
                   onChange={handleBatteryInput('manufacturer')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
               </Field>
-              <Field label="Modelo">
+              <Field label="Modelo (opcional)">
                 <input
                   value={batteryForm.model}
                   onChange={handleBatteryInput('model')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
               </Field>
-              <Field label="Capacidad (kWh)" required>
+              <Field label="Capacidad (kW)" required>
                 <input
                   type="number"
                   min="0"
@@ -1026,7 +940,7 @@ export default function DevicesView({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
               </Field>
-              <Field label="Módulos instalados" required>
+              <Field label="Cantidad instalada" required>
                 <input
                   type="number"
                   min="1"
@@ -1034,72 +948,6 @@ export default function DevicesView({
                   value={batteryForm.quantity}
                   onChange={handleBatteryInput('quantity')}
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Profundidad de descarga (%)">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={batteryForm.maxDepthOfDischargePercent}
-                  onChange={handleBatteryInput('maxDepthOfDischargePercent')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Velocidad de carga (kW)">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={batteryForm.chargeRateKw}
-                  onChange={handleBatteryInput('chargeRateKw')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Velocidad de descarga (kW)">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={batteryForm.dischargeRateKw}
-                  onChange={handleBatteryInput('dischargeRateKw')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Eficiencia (%)">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="1"
-                  value={batteryForm.efficiencyPercent}
-                  onChange={handleBatteryInput('efficiencyPercent')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Química">
-                <input
-                  value={batteryForm.chemistry}
-                  onChange={handleBatteryInput('chemistry')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Voltaje nominal (V)">
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={batteryForm.nominalVoltage}
-                  onChange={handleBatteryInput('nominalVoltage')}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
-                />
-              </Field>
-              <Field label="Observaciones" className="sm:col-span-2">
-                <textarea
-                  value={batteryForm.notes}
-                  onChange={handleBatteryInput('notes')}
-                  className="w-full min-h-[96px] rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
                 />
               </Field>
             </div>
@@ -1135,17 +983,13 @@ export default function DevicesView({
         <ModalShell
           title={
             detailModal.type === 'panel'
-              ? detailModal.data.name || 'Panel sin nombre'
-              : detailModal.data.name || 'Batería sin nombre'
+              ? formatPanelTitle(detailModal.data)
+              : formatBatteryTitle(detailModal.data)
           }
           subtitle={
             detailModal.type === 'panel'
-              ? `${detailModal.data.manufacturer ?? 'Fabricante desconocido'}${
-                  detailModal.data.model ? ` • ${detailModal.data.model}` : ''
-                }`
-              : `${detailModal.data.manufacturer ?? 'Proveedor desconocido'}${
-                  detailModal.data.model ? ` • ${detailModal.data.model}` : ''
-                }`
+              ? detailModal.data.manufacturer ?? 'Fabricante desconocido'
+              : detailModal.data.manufacturer ?? 'Proveedor desconocido'
           }
           onClose={() => setDetailModal(null)}
         >
@@ -1164,15 +1008,6 @@ export default function DevicesView({
                 </div>
               ))}
             </div>
-
-            {(detailModal.data.notes ?? '').trim().length > 0 && (
-              <div className="rounded-2xl border border-slate-100 bg-white px-4 py-4 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Observaciones</p>
-                <p className="mt-2 whitespace-pre-line text-sm text-slate-700">
-                  {detailModal.data.notes}
-                </p>
-              </div>
-            )}
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <span className="text-xs text-slate-500">
@@ -1220,6 +1055,193 @@ export default function DevicesView({
                 </button>
               </div>
             </div>
+          </div>
+        </ModalShell>
+      )}
+
+      {cleanlinessModalOpen && (
+        <ModalShell
+          title="Análisis de limpieza de paneles"
+          subtitle="Suba una fotografía del panel solar para evaluar su estado de limpieza"
+          onClose={() => setCleanlinessModalOpen(false)}
+        >
+          <div className="space-y-5">
+            {/* Upload section - only show if no results */}
+            {!cleanlinessResult && (
+              <div className="space-y-4">
+                <div className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center transition-colors hover:border-amber-400 hover:bg-amber-50/30">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                    id="panel-image-upload"
+                  />
+                  <label
+                    htmlFor="panel-image-upload"
+                    className="cursor-pointer flex flex-col items-center gap-3"
+                  >
+                    <div className="rounded-full bg-amber-100 p-3">
+                      <Image className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {selectedImage ? selectedImage.name : 'Seleccionar imagen del panel'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        JPG, PNG o cualquier formato de imagen
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Image preview */}
+                {imagePreview && (
+                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm">
+                    <img
+                      src={imagePreview}
+                      alt="Vista previa del panel"
+                      className="w-full max-h-80 object-contain bg-slate-50"
+                    />
+                  </div>
+                )}
+
+                {/* Error message */}
+                {cleanlinessError && (
+                  <div className="rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-800">
+                    {cleanlinessError}
+                  </div>
+                )}
+
+                {/* Analyze button */}
+                {selectedImage && (
+                  <button
+                    type="button"
+                    onClick={analyzePanel}
+                    disabled={cleanlinessLoading}
+                    className="w-full rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-600"
+                  >
+                    {cleanlinessLoading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Analizando imagen...
+                      </span>
+                    ) : (
+                      'Analizar estado del panel'
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Results section */}
+            {cleanlinessResult && (
+              <div className="space-y-5">
+                {/* Status badge */}
+                <div className="text-center py-4">
+                  <div
+                    className={`inline-flex items-center gap-3 rounded-xl px-8 py-4 shadow-sm ${
+                      cleanlinessResult.clasificacion === 'limpio'
+                        ? 'bg-emerald-50 border border-emerald-200'
+                        : 'bg-amber-50 border border-amber-200'
+                    }`}
+                  >
+                    <span className="text-3xl">
+                      {cleanlinessResult.clasificacion === 'limpio' ? '✓' : '⚠'}
+                    </span>
+                    <div className="text-left">
+                      <p
+                        className={`text-lg font-bold ${
+                          cleanlinessResult.clasificacion === 'limpio'
+                            ? 'text-emerald-700'
+                            : 'text-amber-700'
+                        }`}
+                      >
+                        {cleanlinessResult.clasificacion === 'limpio'
+                          ? 'Panel Limpio'
+                          : 'Panel con Suciedad'}
+                      </p>
+                      <p className="text-xs text-slate-600">Análisis completado</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Percentages */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Limpieza
+                      </p>
+                      <p className="text-3xl font-bold text-emerald-600">
+                        {cleanlinessResult.porcentaje_limpio.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700 ease-out"
+                        style={{ width: `${cleanlinessResult.porcentaje_limpio}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-white border border-slate-200 p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                        Suciedad
+                      </p>
+                      <p className="text-3xl font-bold text-rose-600">
+                        {cleanlinessResult.porcentaje_sucio.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-rose-500 to-rose-400 transition-all duration-700 ease-out"
+                        style={{ width: `${cleanlinessResult.porcentaje_sucio}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recommendation */}
+                <div className="rounded-xl bg-blue-50 border border-blue-200 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 mb-2">
+                    Recomendación
+                  </p>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {cleanlinessResult.clasificacion === 'limpio'
+                      ? 'El panel se encuentra en buen estado de limpieza. La producción de energía no debería verse afectada significativamente.'
+                      : 'Se recomienda realizar una limpieza del panel solar. La suciedad acumulada puede reducir la eficiencia de producción energética hasta en un 25%.'}
+                  </p>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setImagePreview(null);
+                      setCleanlinessResult(null);
+                      setCleanlinessError(null);
+                    }}
+                    className="flex-1 rounded-lg border-2 border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    Analizar otro panel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCleanlinessModalOpen(false)}
+                    className="flex-1 rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-900"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </ModalShell>
       )}

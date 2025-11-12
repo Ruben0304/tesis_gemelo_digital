@@ -26,7 +26,7 @@ def _aggregate_solar(panels: List[Dict[str, Any]]) -> Dict[str, Any]:
         rated_power = float(panel.get("ratedPowerKw") or 0)
         total_capacity += quantity * rated_power
         total_count += int(quantity)
-        total_strings += int(panel.get("strings") or 0)
+        total_strings += int(panel.get("quantity") or 0)
 
     primary = panels[0]
     return {
@@ -77,4 +77,3 @@ def get_system_config() -> Dict[str, Any]:
         "solar": _aggregate_solar(panels),
         "battery": _aggregate_battery(batteries),
     }
-

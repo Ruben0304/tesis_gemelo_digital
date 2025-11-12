@@ -33,6 +33,12 @@ from app.services.solar_service import get_solar_snapshot
 from app.services.system_config import get_system_config
 from app.services.user_service import authenticate_user, register_user
 from app.services.weather_service import get_weather_with_fallback
+from app.services.ml_prediction_service import (
+    predict_solar_production,
+    predict_next_hours,
+    predict_for_date_range,
+)
+from app.services.ml_model_service import ml_model_service
 
 
 # ============================================================================
@@ -121,17 +127,12 @@ class LocationConfigType:
 @strawberry.type
 class PanelConfigSpec:
     id_: Optional[str] = strawberry.field(name="_id")
-    name: Optional[str]
     manufacturer: Optional[str]
     model: Optional[str]
     ratedPowerKw: Optional[float]
     quantity: Optional[int]
-    strings: Optional[int]
-    efficiencyPercent: Optional[float]
-    areaM2: Optional[float]
     tiltDegrees: Optional[float]
     orientation: Optional[str]
-    notes: Optional[str]
     createdAt: Optional[str]
     updatedAt: Optional[str]
 
@@ -150,18 +151,10 @@ class SolarConfigType:
 @strawberry.type
 class BatteryConfigSpec:
     id_: Optional[str] = strawberry.field(name="_id")
-    name: Optional[str]
     manufacturer: Optional[str]
     model: Optional[str]
     capacityKwh: Optional[float]
     quantity: Optional[int]
-    maxDepthOfDischargePercent: Optional[float]
-    chargeRateKw: Optional[float]
-    dischargeRateKw: Optional[float]
-    efficiencyPercent: Optional[float]
-    chemistry: Optional[str]
-    nominalVoltage: Optional[float]
-    notes: Optional[str]
     createdAt: Optional[str]
     updatedAt: Optional[str]
 
@@ -262,17 +255,12 @@ class PredictionsPayload:
 @strawberry.type
 class PanelType:
     id_: str = strawberry.field(name="_id")
-    name: str
-    manufacturer: Optional[str]
+    manufacturer: str
     model: Optional[str]
     ratedPowerKw: float
     quantity: int
-    strings: int
-    efficiencyPercent: Optional[float]
-    areaM2: Optional[float]
     tiltDegrees: Optional[float]
     orientation: Optional[str]
-    notes: Optional[str]
     createdAt: Optional[str]
     updatedAt: Optional[str]
 
@@ -280,18 +268,10 @@ class PanelType:
 @strawberry.type
 class BatteryType:
     id_: str = strawberry.field(name="_id")
-    name: str
-    manufacturer: Optional[str]
+    manufacturer: str
     model: Optional[str]
     capacityKwh: float
     quantity: int
-    maxDepthOfDischargePercent: Optional[float]
-    chargeRateKw: Optional[float]
-    dischargeRateKw: Optional[float]
-    efficiencyPercent: Optional[float]
-    chemistry: Optional[str]
-    nominalVoltage: Optional[float]
-    notes: Optional[str]
     createdAt: Optional[str]
     updatedAt: Optional[str]
 
@@ -304,6 +284,35 @@ class UserType:
     role: str
     createdAt: Optional[str]
     updatedAt: Optional[str]
+
+
+@strawberry.type
+class MLWeatherFeaturesType:
+    temperature_2m: float
+    relative_humidity_2m: float
+    wind_speed_10m: float
+    cloud_cover: float
+    shortwave_radiation: float
+
+
+@strawberry.type
+class MLPredictionType:
+    datetime: str
+    production_kw: float
+    weather: MLWeatherFeaturesType
+
+
+@strawberry.type
+class MLModelInfoType:
+    loaded: bool
+    model_name: Optional[str]
+    test_rmse: Optional[float]
+    test_r2: Optional[float]
+    test_mae: Optional[float]
+    features: List[str]
+    training_date: Optional[str]
+    requires_scaling: Optional[bool]
+    message: Optional[str]
 
 
 # ============================================================================
@@ -497,6 +506,178 @@ class Query:
         items = list_blackouts(start_date, end_date, limit)
         return [_map_blackout(item) for item in items]
 
+    @strawberry.field
+    async def ml_predict(
+        self,
+        datetimes: List[str],
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+    ) -> List[MLPredictionType]:
+        """
+        Predict solar production using ML model for specific datetimes.
+
+        Args:
+            datetimes: List of ISO datetime strings (e.g., ["2025-01-15T13:00:00", "2025-01-15T14:00:00"])
+            lat: Latitude (optional, defaults to system location)
+            lon: Longitude (optional, defaults to system location)
+
+        Returns:
+            List of predictions with production_kw and weather features
+        """
+        # Get system config for location if not provided
+        if lat is None or lon is None:
+            config = get_system_config()
+            lat = lat or config["location"]["lat"]
+            lon = lon or config["location"]["lon"]
+
+        predictions = await predict_solar_production(datetimes, lat, lon)
+
+        return [
+            MLPredictionType(
+                datetime=pred["datetime"],
+                production_kw=pred["production_kw"],
+                weather=MLWeatherFeaturesType(**pred["weather"]),
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    async def ml_predict_next_hours(
+        self,
+        hours: int = 24,
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+    ) -> List[MLPredictionType]:
+        """
+        Predict solar production for the next N hours.
+
+        Args:
+            hours: Number of hours to predict (default: 24)
+            lat: Latitude (optional, defaults to system location)
+            lon: Longitude (optional, defaults to system location)
+
+        Returns:
+            List of hourly predictions
+        """
+        # Get system config for location if not provided
+        if lat is None or lon is None:
+            config = get_system_config()
+            lat = lat or config["location"]["lat"]
+            lon = lon or config["location"]["lon"]
+
+        predictions = await predict_next_hours(hours, lat, lon)
+
+        return [
+            MLPredictionType(
+                datetime=pred["datetime"],
+                production_kw=pred["production_kw"],
+                weather=MLWeatherFeaturesType(**pred["weather"]),
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    async def ml_predict_date_range(
+        self,
+        start_date: str,
+        end_date: str,
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+    ) -> List[MLPredictionType]:
+        """
+        Predict solar production for all hours in a date range.
+
+        Args:
+            start_date: Start date (ISO format: 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS')
+            end_date: End date (ISO format: 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM:SS')
+            lat: Latitude (optional, defaults to system location)
+            lon: Longitude (optional, defaults to system location)
+
+        Returns:
+            List of hourly predictions for the entire date range
+        """
+        # Get system config for location if not provided
+        if lat is None or lon is None:
+            config = get_system_config()
+            lat = lat or config["location"]["lat"]
+            lon = lon or config["location"]["lon"]
+
+        predictions = await predict_for_date_range(start_date, end_date, lat, lon)
+
+        return [
+            MLPredictionType(
+                datetime=pred["datetime"],
+                production_kw=pred["production_kw"],
+                weather=MLWeatherFeaturesType(**pred["weather"]),
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    async def ml_predict_for_hours(
+        self,
+        date: str,
+        hours: List[int],
+        lat: Optional[float] = None,
+        lon: Optional[float] = None,
+    ) -> List[MLPredictionType]:
+        """
+        Predict solar production for specific hours of a given day.
+
+        Args:
+            date: Date in YYYY-MM-DD format
+            hours: List of hours (0-23) to predict for (e.g., [7, 8, 9, ..., 22] for 7am-10pm)
+            lat: Optional latitude (defaults to system location)
+            lon: Optional longitude (defaults to system location)
+
+        Returns:
+            List of predictions with production_kw and weather features
+        """
+        from .services.ml_prediction_service import predict_for_specific_hours
+        from .services.system_config import get_system_config
+
+        config = get_system_config()
+        latitude = lat if lat is not None else config["location"]["lat"]
+        longitude = lon if lon is not None else config["location"]["lon"]
+
+        predictions = await predict_for_specific_hours(date, hours, latitude, longitude)
+
+        return [
+            MLPredictionType(
+                datetime=pred["datetime"],
+                production_kw=pred["production_kw"],
+                weather=MLWeatherFeaturesType(
+                    temperature_2m=pred["weather"]["temperature_2m"],
+                    relative_humidity_2m=pred["weather"]["relative_humidity_2m"],
+                    wind_speed_10m=pred["weather"]["wind_speed_10m"],
+                    cloud_cover=pred["weather"]["cloud_cover"],
+                    shortwave_radiation=pred["weather"]["shortwave_radiation"],
+                ),
+            )
+            for pred in predictions
+        ]
+
+    @strawberry.field
+    def ml_model_info(self) -> MLModelInfoType:
+        """
+        Get information about the loaded ML model.
+
+        Returns:
+            Model metadata including accuracy metrics and status
+        """
+        info = ml_model_service.get_model_info()
+        return MLModelInfoType(
+            loaded=info.get("loaded", False),
+            model_name=info.get("model_name"),
+            test_rmse=info.get("test_rmse"),
+            test_r2=info.get("test_r2"),
+            test_mae=info.get("test_mae"),
+            features=info.get("features", []),
+            training_date=info.get("training_date"),
+            requires_scaling=info.get("requires_scaling"),
+            message=info.get("message"),
+        )
+
 
 # ============================================================================
 # Inputs
@@ -505,33 +686,20 @@ class Query:
 
 @strawberry.input
 class PanelInput:
-    name: str
-    manufacturer: Optional[str] = None
+    manufacturer: str
     model: Optional[str] = None
     ratedPowerKw: float
     quantity: int
-    strings: int
-    efficiencyPercent: Optional[float] = None
-    areaM2: Optional[float] = None
     tiltDegrees: Optional[float] = None
     orientation: Optional[str] = None
-    notes: Optional[str] = None
 
 
 @strawberry.input
 class BatteryInput:
-    name: str
-    manufacturer: Optional[str] = None
+    manufacturer: str
     model: Optional[str] = None
     capacityKwh: float
     quantity: int
-    maxDepthOfDischargePercent: Optional[float] = None
-    chargeRateKw: Optional[float] = None
-    dischargeRateKw: Optional[float] = None
-    efficiencyPercent: Optional[float] = None
-    chemistry: Optional[str] = None
-    nominalVoltage: Optional[float] = None
-    notes: Optional[str] = None
 
 
 @strawberry.input

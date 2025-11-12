@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import MetricsCards from './MetricsCards';
 import SolarProductionChart from './SolarProductionChart';
 import BatteryStatus from './BatteryStatus';
@@ -112,17 +112,12 @@ const DASHBOARD_QUERY = `
           panelAreaM2
           spec {
             _id
-            name
             manufacturer
             model
             ratedPowerKw
             quantity
-            strings
-            efficiencyPercent
-            areaM2
             tiltDegrees
             orientation
-            notes
             createdAt
             updatedAt
           }
@@ -137,18 +132,10 @@ const DASHBOARD_QUERY = `
           efficiencyPercent
           spec {
             _id
-            name
             manufacturer
             model
             capacityKwh
             quantity
-            maxDepthOfDischargePercent
-            chargeRateKw
-            dischargeRateKw
-            efficiencyPercent
-            chemistry
-            nominalVoltage
-            notes
             createdAt
             updatedAt
           }
@@ -280,39 +267,38 @@ const DASHBOARD_QUERY = `
     }
     panels {
       _id
-      name
       manufacturer
       model
       ratedPowerKw
       quantity
-      strings
-      efficiencyPercent
-      areaM2
       tiltDegrees
       orientation
-      notes
       createdAt
       updatedAt
     }
     batteries {
       _id
-      name
       manufacturer
       model
       capacityKwh
       quantity
-      maxDepthOfDischargePercent
-      chargeRateKw
-      dischargeRateKw
-      efficiencyPercent
-      chemistry
-      nominalVoltage
-      notes
       createdAt
       updatedAt
     }
   }
 `;
+
+type MLPrediction = {
+  datetime: string;
+  productionKw: number;
+  weather: {
+    temperature2m: number;
+    relativeHumidity2m: number;
+    windSpeed10m: number;
+    cloudCover: number;
+    shortwaveRadiation: number;
+  };
+};
 
 type DashboardQueryResult = {
   solar: {
@@ -342,9 +328,63 @@ type DashboardQueryResult = {
   batteries: BatteryConfig[];
 };
 
+type MLPredictionsQueryResult = {
+  mlPredictForHours: MLPrediction[];
+};
+
+// Query for ML predictions for a specific day
+const ML_PREDICTIONS_QUERY = `
+  query MLPredictions($date: String!, $hours: [Int!]!) {
+    mlPredictForHours(date: $date, hours: $hours) {
+      datetime
+      productionKw
+      weather {
+        temperature2m
+        relativeHumidity2m
+        windSpeed10m
+        cloudCover
+        shortwaveRadiation
+      }
+    }
+  }
+`;
+
 interface DashboardProps {
   user: User;
   onLogout: () => void;
+}
+
+// Helper function to predict consumption based on hour (matching backend logic)
+function predictConsumption(hour: number): number {
+  const baseDay = 35;
+  const baseNight = 18;
+  if ((hour >= 7 && hour <= 9) || (hour >= 18 && hour <= 22)) {
+    return baseDay * 1.3;
+  }
+  if (hour >= 6 && hour < 18) {
+    return baseDay;
+  }
+  return baseNight;
+}
+
+// Transform ML predictions to SolarData format
+function transformMLPredictionsToSolarData(mlPredictions: MLPrediction[]): SolarData[] {
+  return mlPredictions.map((mlPred) => {
+    const timestamp = new Date(mlPred.datetime);
+    const hour = timestamp.getHours();
+    const consumption = predictConsumption(hour);
+
+    return {
+      timestamp: mlPred.datetime,
+      production: mlPred.productionKw,
+      consumption: consumption,
+      batteryLevel: 0, // Will be calculated by system
+      gridExport: 0,
+      gridImport: 0,
+      efficiency: 85, // Default efficiency estimate
+      batteryDelta: 0,
+    };
+  });
 }
 
 export default function Dashboard({ user, onLogout }: DashboardProps) {
@@ -370,6 +410,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     blackouts?: BlackoutSchedule[];
   } | null>(null);
 
+  const [mlPredictions, setMlPredictions] = useState<SolarData[]>([]);
+  const [mlLoading, setMlLoading] = useState(false);
   const [panelConfigs, setPanelConfigs] = useState<SolarPanelConfig[]>([]);
   const [batteryConfigs, setBatteryConfigs] = useState<BatteryConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -426,6 +468,36 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     };
   }, [solarData, energyFlowData]);
 
+  // Fetch ML predictions for a specific day (7am-10pm)
+  const fetchMLPredictionsForDay = useCallback(async (dayOffset: number) => {
+    setMlLoading(true);
+    try {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + dayOffset);
+      const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Hours from 7am to 10pm (7, 8, 9, ..., 22)
+      const hours = Array.from({ length: 16 }, (_, i) => i + 7);
+
+      const data = await executeQuery<MLPredictionsQueryResult>(
+        ML_PREDICTIONS_QUERY,
+        { date: dateStr, hours }
+      );
+
+      if (data.mlPredictForHours && data.mlPredictForHours.length > 0) {
+        const transformedPredictions = transformMLPredictionsToSolarData(data.mlPredictForHours);
+        setMlPredictions(transformedPredictions);
+      } else {
+        setMlPredictions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching ML predictions:', error);
+      setMlPredictions([]);
+    } finally {
+      setMlLoading(false);
+    }
+  }, []);
+
   // Fetch all data
   const fetchData = async () => {
     try {
@@ -435,8 +507,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       setPredictionsData(data.predictions);
       setPanelConfigs(data.panels ?? []);
       setBatteryConfigs(data.batteries ?? []);
+
       setLastUpdate(new Date());
       setLoading(false);
+
+      // Load ML predictions for today after main data is loaded
+      await fetchMLPredictionsForDay(0);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       setLoading(false);
@@ -531,7 +607,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <div className="lg:col-span-2">
-                <SolarProductionChart data={solarData.historical} />
+                <SolarProductionChart
+                  data={mlPredictions.length > 0 ? mlPredictions : solarData.historical}
+                  useMLPredictions={mlPredictions.length > 0}
+                  loading={mlLoading}
+                  onDayChange={fetchMLPredictionsForDay}
+                />
               </div>
               <div>
                 <BatteryStatus battery={solarData.battery} />

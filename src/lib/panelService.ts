@@ -12,17 +12,12 @@ type SolarPanelDocument = Omit<SolarPanelConfig, '_id' | 'createdAt' | 'updatedA
 function mapPanel(doc: WithId<SolarPanelDocument>): SolarPanelConfig {
   return {
     _id: doc._id.toHexString(),
-    name: doc.name,
     manufacturer: doc.manufacturer,
     model: doc.model,
     ratedPowerKw: doc.ratedPowerKw,
     quantity: doc.quantity,
-    strings: doc.strings,
-    efficiencyPercent: doc.efficiencyPercent,
-    areaM2: doc.areaM2,
     tiltDegrees: doc.tiltDegrees,
     orientation: doc.orientation,
-    notes: doc.notes,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   };
@@ -60,29 +55,20 @@ export async function getPanelById(id: string): Promise<SolarPanelConfig | null>
 }
 
 export async function createPanel(payload: Partial<SolarPanelConfig>): Promise<SolarPanelConfig> {
-  if (!payload.name) {
-    throw new Error('El campo name es obligatorio.');
+  if (!payload.manufacturer?.trim()) {
+    throw new Error('El campo manufacturer es obligatorio.');
   }
 
   const now = new Date();
   const document: SolarPanelDocument = {
-    name: payload.name,
-    manufacturer: payload.manufacturer,
+    manufacturer: payload.manufacturer.trim(),
     model: payload.model,
     ratedPowerKw: ensurePositive(payload.ratedPowerKw, 'ratedPowerKw'),
-    quantity: ensurePositive(payload.quantity, 'quantity'),
-    strings: ensurePositive(payload.strings, 'strings'),
-    efficiencyPercent: payload.efficiencyPercent !== undefined
-      ? ensurePositive(payload.efficiencyPercent, 'efficiencyPercent')
-      : undefined,
-    areaM2: payload.areaM2 !== undefined
-      ? ensurePositive(payload.areaM2, 'areaM2')
-      : undefined,
+    quantity: Math.trunc(ensurePositive(payload.quantity, 'quantity')),
     tiltDegrees: payload.tiltDegrees !== undefined
       ? ensureNonNegative(payload.tiltDegrees, 'tiltDegrees')
       : undefined,
     orientation: payload.orientation,
-    notes: payload.notes,
     createdAt: now,
     updatedAt: now,
   };
@@ -94,17 +80,12 @@ export async function createPanel(payload: Partial<SolarPanelConfig>): Promise<S
   return {
     ...payload,
     _id: result.insertedId.toHexString(),
-    name: document.name,
     manufacturer: document.manufacturer,
     model: document.model,
     ratedPowerKw: document.ratedPowerKw,
     quantity: document.quantity,
-    strings: document.strings,
-    efficiencyPercent: document.efficiencyPercent,
-    areaM2: document.areaM2,
     tiltDegrees: document.tiltDegrees,
     orientation: document.orientation,
-    notes: document.notes,
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
   };
@@ -125,29 +106,23 @@ export async function updatePanel(
 
   const update: Partial<SolarPanelDocument> = {};
 
-  if (payload.name !== undefined) update.name = payload.name;
-  if (payload.manufacturer !== undefined) update.manufacturer = payload.manufacturer;
+  if (payload.manufacturer !== undefined) {
+    if (!payload.manufacturer.trim()) {
+      throw new Error('El campo manufacturer es obligatorio.');
+    }
+    update.manufacturer = payload.manufacturer.trim();
+  }
   if (payload.model !== undefined) update.model = payload.model;
   if (payload.ratedPowerKw !== undefined) {
     update.ratedPowerKw = ensurePositive(payload.ratedPowerKw, 'ratedPowerKw');
   }
   if (payload.quantity !== undefined) {
-    update.quantity = ensurePositive(payload.quantity, 'quantity');
-  }
-  if (payload.strings !== undefined) {
-    update.strings = ensurePositive(payload.strings, 'strings');
-  }
-  if (payload.efficiencyPercent !== undefined) {
-    update.efficiencyPercent = ensurePositive(payload.efficiencyPercent, 'efficiencyPercent');
-  }
-  if (payload.areaM2 !== undefined) {
-    update.areaM2 = ensurePositive(payload.areaM2, 'areaM2');
+    update.quantity = Math.trunc(ensurePositive(payload.quantity, 'quantity'));
   }
   if (payload.tiltDegrees !== undefined) {
     update.tiltDegrees = ensureNonNegative(payload.tiltDegrees, 'tiltDegrees');
   }
   if (payload.orientation !== undefined) update.orientation = payload.orientation;
-  if (payload.notes !== undefined) update.notes = payload.notes;
 
   update.updatedAt = new Date();
 

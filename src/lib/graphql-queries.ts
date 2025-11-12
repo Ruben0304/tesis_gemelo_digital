@@ -104,17 +104,12 @@ export const PANELS_QUERY = `
   query Panels {
     panels {
       _id
-      name
       manufacturer
       model
       ratedPowerKw
       quantity
-      strings
-      efficiencyPercent
-      areaM2
       tiltDegrees
       orientation
-      notes
       createdAt
       updatedAt
     }
@@ -125,17 +120,12 @@ export const PANEL_QUERY = `
   query Panel($id: String!) {
     panel(id: $id) {
       _id
-      name
       manufacturer
       model
       ratedPowerKw
       quantity
-      strings
-      efficiencyPercent
-      areaM2
       tiltDegrees
       orientation
-      notes
       createdAt
       updatedAt
     }
@@ -146,18 +136,10 @@ export const BATTERIES_QUERY = `
   query Batteries {
     batteries {
       _id
-      name
       manufacturer
       model
       capacityKwh
       quantity
-      maxDepthOfDischargePercent
-      chargeRateKw
-      dischargeRateKw
-      efficiencyPercent
-      chemistry
-      nominalVoltage
-      notes
       createdAt
       updatedAt
     }
@@ -168,18 +150,10 @@ export const BATTERY_QUERY = `
   query Battery($id: String!) {
     battery(id: $id) {
       _id
-      name
       manufacturer
       model
       capacityKwh
       quantity
-      maxDepthOfDischargePercent
-      chargeRateKw
-      dischargeRateKw
-      efficiencyPercent
-      chemistry
-      nominalVoltage
-      notes
       createdAt
       updatedAt
     }
@@ -213,12 +187,10 @@ export const CREATE_PANEL_MUTATION = `
   mutation CreatePanel($input: PanelInput!) {
     createPanel(input: $input) {
       _id
-      name
       manufacturer
       model
       ratedPowerKw
       quantity
-      strings
       createdAt
     }
   }
@@ -228,12 +200,10 @@ export const UPDATE_PANEL_MUTATION = `
   mutation UpdatePanel($id: String!, $input: PanelInput!) {
     updatePanel(id: $id, input: $input) {
       _id
-      name
       manufacturer
       model
       ratedPowerKw
       quantity
-      strings
       updatedAt
     }
   }
@@ -249,7 +219,6 @@ export const CREATE_BATTERY_MUTATION = `
   mutation CreateBattery($input: BatteryInput!) {
     createBattery(input: $input) {
       _id
-      name
       manufacturer
       model
       capacityKwh
@@ -263,7 +232,6 @@ export const UPDATE_BATTERY_MUTATION = `
   mutation UpdateBattery($id: String!, $input: BatteryInput!) {
     updateBattery(id: $id, input: $input) {
       _id
-      name
       manufacturer
       model
       capacityKwh
