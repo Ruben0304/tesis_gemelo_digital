@@ -300,6 +300,11 @@ type MLPrediction = {
   };
 };
 
+type MLConsumptionPrediction = {
+  datetime: string;
+  consumptionKw: number;
+};
+
 type DashboardQueryResult = {
   solar: {
     current: SolarData;
@@ -332,6 +337,10 @@ type MLPredictionsQueryResult = {
   mlPredictForHours: MLPrediction[];
 };
 
+type MLConsumptionPredictionsQueryResult = {
+  mlPredictConsumptionDateRange: MLConsumptionPrediction[];
+};
+
 // Query for ML predictions for a specific day
 const ML_PREDICTIONS_QUERY = `
   query MLPredictions($date: String!, $hours: [Int!]!) {
@@ -345,6 +354,15 @@ const ML_PREDICTIONS_QUERY = `
         cloudCover
         shortwaveRadiation
       }
+    }
+  }
+`;
+
+const ML_CONSUMPTION_PREDICTIONS_QUERY = `
+  query MLPredictConsumption($startDate: String!, $endDate: String!) {
+    mlPredictConsumptionDateRange(startDate: $startDate, endDate: $endDate) {
+      datetime
+      consumptionKw
     }
   }
 `;
@@ -367,17 +385,39 @@ function predictConsumption(hour: number): number {
   return baseNight;
 }
 
+function normalizeTimestamp(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+}
+
 // Transform ML predictions to SolarData format
-function transformMLPredictionsToSolarData(mlPredictions: MLPrediction[]): SolarData[] {
+function transformMLPredictionsToSolarData(
+  mlPredictions: MLPrediction[],
+  consumptionPredictions: MLConsumptionPrediction[]
+): SolarData[] {
+  const consumptionMap = consumptionPredictions.reduce<Map<string, number>>((map, entry) => {
+    if (!entry?.datetime) {
+      return map;
+    }
+    map.set(entry.datetime, entry.consumptionKw);
+    const normalized = normalizeTimestamp(entry.datetime);
+    map.set(normalized, entry.consumptionKw);
+    return map;
+  }, new Map());
+
   return mlPredictions.map((mlPred) => {
     const timestamp = new Date(mlPred.datetime);
-    const hour = timestamp.getHours();
-    const consumption = predictConsumption(hour);
+    const hour = Number.isNaN(timestamp.getTime()) ? 0 : timestamp.getHours();
+    const normalizedTimestamp = normalizeTimestamp(mlPred.datetime);
+    const consumption =
+      consumptionMap.get(mlPred.datetime) ??
+      consumptionMap.get(normalizedTimestamp) ??
+      predictConsumption(hour);
 
     return {
       timestamp: mlPred.datetime,
       production: mlPred.productionKw,
-      consumption: consumption,
+      consumption,
       batteryLevel: 0, // Will be calculated by system
       gridExport: 0,
       gridImport: 0,
@@ -475,17 +515,34 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + dayOffset);
       const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const nextDate = new Date(targetDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      const nextDateStr = nextDate.toISOString().split('T')[0];
 
       // Hours from 7am to 10pm (7, 8, 9, ..., 22)
       const hours = Array.from({ length: 16 }, (_, i) => i + 7);
 
-      const data = await executeQuery<MLPredictionsQueryResult>(
+      const productionData = await executeQuery<MLPredictionsQueryResult>(
         ML_PREDICTIONS_QUERY,
         { date: dateStr, hours }
       );
 
-      if (data.mlPredictForHours && data.mlPredictForHours.length > 0) {
-        const transformedPredictions = transformMLPredictionsToSolarData(data.mlPredictForHours);
+      let consumptionPredictions: MLConsumptionPrediction[] = [];
+      try {
+        const consumptionData = await executeQuery<MLConsumptionPredictionsQueryResult>(
+          ML_CONSUMPTION_PREDICTIONS_QUERY,
+          { startDate: dateStr, endDate: nextDateStr }
+        );
+        consumptionPredictions = consumptionData.mlPredictConsumptionDateRange ?? [];
+      } catch (consumptionError) {
+        console.warn('Error fetching ML consumption predictions:', consumptionError);
+      }
+
+      if (productionData.mlPredictForHours && productionData.mlPredictForHours.length > 0) {
+        const transformedPredictions = transformMLPredictionsToSolarData(
+          productionData.mlPredictForHours,
+          consumptionPredictions
+        );
         setMlPredictions(transformedPredictions);
       } else {
         setMlPredictions([]);
@@ -615,7 +672,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 />
               </div>
               <div>
-                <BatteryStatus battery={solarData.battery} />
+                <BatteryStatus batteries={batteryConfigs} />
               </div>
             </div>
 

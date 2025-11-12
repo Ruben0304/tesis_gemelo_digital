@@ -146,6 +146,16 @@ export const BATTERIES_QUERY = `
   }
 `
 
+export const BATTERY_DISCHARGE_ESTIMATE_QUERY = `
+  query BatteryDischargeEstimate($startHour: Int!) {
+    batteryDischargeEstimate(startHour: $startHour) {
+      minutesToEmpty
+      startHour
+      batteryCapacityKwh
+    }
+  }
+`
+
 export const BATTERY_QUERY = `
   query Battery($id: String!) {
     battery(id: $id) {

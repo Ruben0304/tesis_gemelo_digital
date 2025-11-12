@@ -46,6 +46,7 @@ from app.services.consumption_prediction_service import (
     predict_consumption_for_specific_hours,
 )
 from app.services.ml_consumption_service import ml_consumption_service
+from app.services.battery_discharge_service import calculate_battery_discharge_time
 
 
 # ============================================================================
@@ -343,6 +344,13 @@ class MLConsumptionModelInfoType:
     message: Optional[str]
 
 
+@strawberry.type
+class BatteryDischargeEstimateType:
+    minutesToEmpty: Optional[int]
+    startHour: int
+    batteryCapacityKwh: float
+
+
 # ============================================================================
 # Helpers
 # ============================================================================
@@ -487,6 +495,35 @@ def _scale_ml_predictions(
             **pred,
             "production_kw": round(float(pred["production_kw"]) * scale_factor, 2),
         })
+    return scaled_predictions
+
+
+def _scale_consumption_predictions(
+    predictions: List[Dict[str, Any]],
+    divisor: float = 10.0,
+) -> List[Dict[str, Any]]:
+    """
+    Apply a fixed scaling factor to consumption predictions before returning them.
+    """
+    if not predictions:
+        return predictions
+
+    if not divisor or divisor == 0:
+        return predictions
+
+    scaled_predictions: List[Dict[str, Any]] = []
+    for pred in predictions:
+        value = pred.get("consumption_kw")
+        try:
+            scaled_value = round(float(value) / divisor, 2)
+        except (TypeError, ValueError):
+            scaled_value = value
+
+        scaled_predictions.append({
+            **pred,
+            "consumption_kw": scaled_value,
+        })
+
     return scaled_predictions
 
 
@@ -776,6 +813,7 @@ class Query:
             List of consumption predictions in kW
         """
         predictions = await predict_consumption(datetimes, campus_id, meter_id)
+        predictions = _scale_consumption_predictions(predictions)
 
         return [
             MLConsumptionPredictionType(
@@ -804,6 +842,7 @@ class Query:
             List of hourly consumption predictions
         """
         predictions = await predict_consumption_next_hours(hours, campus_id, meter_id)
+        predictions = _scale_consumption_predictions(predictions)
 
         return [
             MLConsumptionPredictionType(
@@ -834,6 +873,7 @@ class Query:
             List of hourly consumption predictions for the entire date range
         """
         predictions = await predict_consumption_for_date_range(start_date, end_date, campus_id, meter_id)
+        predictions = _scale_consumption_predictions(predictions)
 
         return [
             MLConsumptionPredictionType(
@@ -864,6 +904,7 @@ class Query:
             List of consumption predictions for the specified hours
         """
         predictions = await predict_consumption_for_specific_hours(date, hours, campus_id, meter_id)
+        predictions = _scale_consumption_predictions(predictions)
 
         return [
             MLConsumptionPredictionType(
@@ -893,6 +934,41 @@ class Query:
             campus_id_default=info.get("campus_id_default"),
             meter_id_default=info.get("meter_id_default"),
             message=info.get("message"),
+        )
+
+    @strawberry.field
+    async def battery_discharge_estimate(
+        self,
+        start_hour: int,
+        date: Optional[str] = None,
+    ) -> BatteryDischargeEstimateType:
+        """
+        Calculate time until battery reaches empty (0%) level.
+
+        Simulates battery discharge/charge based on predicted production and consumption,
+        starting from a given hour with batteries at 100% charge.
+
+        Args:
+            start_hour: Starting hour (0-23) to begin simulation
+            date: Optional date in ISO format ('YYYY-MM-DD'). If not provided, uses today.
+
+        Returns:
+            Estimate with minutes until battery is fully discharged
+
+        Example:
+            query {
+              batteryDischargeEstimate(startHour: 14) {
+                minutesToEmpty
+                startHour
+                batteryCapacityKwh
+              }
+            }
+        """
+        result = await calculate_battery_discharge_time(start_hour, date)
+        return BatteryDischargeEstimateType(
+            minutesToEmpty=result["minutesToEmpty"],
+            startHour=result["startHour"],
+            batteryCapacityKwh=result["batteryCapacityKwh"],
         )
 
 
