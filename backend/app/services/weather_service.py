@@ -104,7 +104,7 @@ async def fetch_open_meteo_weather(
         "timezone": "auto",
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=5) as client:
         current_res, daily_res = await client.get(OPENMETEO_BASE_URL, params=params_current), await client.get(
             OPENMETEO_BASE_URL, params=params_daily
         )
@@ -241,7 +241,7 @@ async def _fetch_openweather_snapshot(force: bool = False) -> Dict[str, Any]:
         "exclude": "minutely,alerts",
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=5) as client:
         response = await client.get("https://api.openweathermap.org/data/2.5/onecall", params=params)
     response.raise_for_status()
 

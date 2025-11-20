@@ -286,7 +286,7 @@ class BatteryType:
 
 @strawberry.type
 class UserType:
-    _id: str
+    id_: str = strawberry.field(name="_id")
     email: str
     name: Optional[str]
     role: str
@@ -456,6 +456,14 @@ def _map_blackout(data: dict) -> BlackoutType:
         createdAt=data.get("createdAt"),
         updatedAt=data.get("updatedAt"),
     )
+
+
+def _map_user(data: dict) -> UserType:
+    # Rename _id to id_ for Strawberry field mapping
+    data_copy = {**data}
+    if "_id" in data_copy:
+        data_copy["id_"] = data_copy.pop("_id")
+    return UserType(**data_copy)
 
 
 def _get_real_capacity_kw_from_config(config: Optional[dict]) -> Optional[float]:
@@ -1094,12 +1102,12 @@ class Mutation:
     @strawberry.mutation(name="registerUser")
     def register_user_mutation(self, input: RegisterInput) -> UserType:
         user = register_user(input.__dict__)
-        return UserType(**user)
+        return _map_user(user)
 
     @strawberry.mutation(name="loginUser")
     def login_user_mutation(self, input: LoginInput) -> UserType:
         user = authenticate_user(input.__dict__)
-        return UserType(**user)
+        return _map_user(user)
 
 
 # ============================================================================

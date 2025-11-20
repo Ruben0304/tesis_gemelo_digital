@@ -52,7 +52,7 @@ async def fetch_open_meteo_hourly(
         "timezone": "auto",
     }
 
-    async with httpx.AsyncClient(timeout=15) as client:
+    async with httpx.AsyncClient(timeout=5) as client:
         response = await client.get(OPENMETEO_BASE_URL, params=params)
 
     response.raise_for_status()

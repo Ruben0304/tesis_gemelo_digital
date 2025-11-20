@@ -19,7 +19,7 @@ interface BatteryStatusProps {
 
 interface BatteryDischargeEstimateResponse {
   batteryDischargeEstimate: {
-    minutesToEmpty: number;
+    minutesToEmpty: number | null;
     startHour: number;
     batteryCapacityKwh: number;
   };
@@ -102,8 +102,10 @@ export default function BatteryStatus({ batteries }: BatteryStatusProps) {
     }
   };
 
-  const formatMinutesToText = (minutes: number) => {
-    if (!Number.isFinite(minutes)) return 'N/D';
+  const formatMinutesToText = (minutes: number | null) => {
+    if (minutes === null || !Number.isFinite(minutes)) {
+      return 'No se vacía en 48h';
+    }
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = Math.max(0, Math.round(minutes - hours * 60));
     const hoursText = hours > 0 ? `${hours} h` : '';
