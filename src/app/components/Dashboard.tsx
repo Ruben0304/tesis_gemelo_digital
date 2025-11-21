@@ -26,8 +26,9 @@ import {
   BatteryConfig,
   EnergyFlow,
 } from '@/types';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ExclamationTriangleIcon, WifiIcon } from '@heroicons/react/24/outline';
 import { executeQuery } from '@/lib/graphql-client';
+import { DEFAULT_SYSTEM_CONFIG } from '@/lib/systemDefaults';
 
 const DASHBOARD_QUERY = `
   query DashboardData {
@@ -368,6 +369,110 @@ const ML_CONSUMPTION_PREDICTIONS_QUERY = `
   }
 `;
 
+const DEMO_DATA: DashboardQueryResult = {
+  solar: {
+    current: {
+      timestamp: new Date().toISOString(),
+      production: 3.5,
+      consumption: 1.2,
+      batteryLevel: 75,
+      gridExport: 2.3,
+      gridImport: 0,
+      efficiency: 90,
+      batteryDelta: 0,
+    },
+    historical: [],
+    battery: {
+      chargeLevel: 75,
+      capacity: 10,
+      current: 0,
+      autonomyHours: 5,
+      charging: false,
+      powerFlow: 0,
+      projectedMinLevel: 20,
+      projectedMaxLevel: 90,
+      note: 'Simulación',
+    },
+    metrics: {
+      currentProduction: 3.5,
+      currentConsumption: 1.2,
+      energyBalance: 2.3,
+      systemEfficiency: 90,
+      dailyProduction: 20,
+      dailyConsumption: 10,
+      co2Avoided: 10,
+    },
+    energyFlow: {
+      solarToBattery: 0,
+      solarToLoad: 1.2,
+      solarToGrid: 2.3,
+      batteryToLoad: 0,
+      gridToLoad: 0,
+    },
+    weather: {
+      temperature: 26,
+      solarRadiation: 800,
+      cloudCover: 10,
+      humidity: 60,
+      windSpeed: 15,
+      provider: 'Datos Demo',
+      locationName: 'Ubicación Demo',
+      lastUpdated: new Date().toISOString(),
+      description: 'Soleado (Demo)',
+      forecast: [],
+    },
+    config: DEFAULT_SYSTEM_CONFIG,
+    timestamp: new Date().toISOString(),
+    mode: 'demo',
+  },
+  weather: {
+    temperature: 26,
+    solarRadiation: 800,
+    cloudCover: 10,
+    humidity: 60,
+    windSpeed: 15,
+    provider: 'Datos Demo',
+    locationName: 'Ubicación Demo',
+    lastUpdated: new Date().toISOString(),
+    description: 'Soleado (Demo)',
+    forecast: [],
+  },
+  predictions: {
+    predictions: [],
+    alerts: [],
+    recommendations: [],
+    battery: {
+      chargeLevel: 75,
+      capacity: 10,
+      current: 0,
+      autonomyHours: 5,
+      charging: false,
+      powerFlow: 0,
+      projectedMinLevel: 20,
+      projectedMaxLevel: 90,
+      note: 'Simulación',
+    },
+    timeline: [],
+    weather: {
+      temperature: 26,
+      solarRadiation: 800,
+      cloudCover: 10,
+      humidity: 60,
+      windSpeed: 15,
+      provider: 'Datos Demo',
+      locationName: 'Ubicación Demo',
+      lastUpdated: new Date().toISOString(),
+      description: 'Soleado (Demo)',
+      forecast: [],
+    },
+    timestamp: new Date().toISOString(),
+    config: DEFAULT_SYSTEM_CONFIG,
+    blackouts: [],
+  },
+  panels: [],
+  batteries: [],
+};
+
 interface DashboardProps {
   user: User;
   onLogout: () => void;
@@ -458,6 +563,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [activeSection, setActiveSection] = useState<'overview' | 'stats' | 'devices' | 'admin'>('overview');
+  const [isOffline, setIsOffline] = useState(false);
+  const [isSlowNetwork, setIsSlowNetwork] = useState(false);
 
   const energyFlowData = useMemo<EnergyFlow | null>(() => {
     if (!solarData) {
@@ -558,8 +665,36 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   // Fetch all data
   const fetchData = async () => {
+    // Check for offline status immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setIsOffline(true);
+      // Load demo data if offline
+      setSolarData(DEMO_DATA.solar);
+      setWeatherData(DEMO_DATA.weather);
+      setPredictionsData(DEMO_DATA.predictions);
+      setPanelConfigs(DEMO_DATA.panels);
+      setBatteryConfigs(DEMO_DATA.batteries);
+      setLoading(false);
+      return;
+    } else {
+      setIsOffline(false);
+    }
+
     try {
-      const data = await executeQuery<DashboardQueryResult>(DASHBOARD_QUERY);
+      // Create a promise that rejects after 12 seconds
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('TIMEOUT'));
+        }, 12000);
+      });
+
+      // Race between the fetch and the timeout
+      const data = await Promise.race([
+        executeQuery<DashboardQueryResult>(DASHBOARD_QUERY),
+        timeoutPromise
+      ]);
+
+      setIsSlowNetwork(false); // Reset slow network if successful
       setSolarData(data.solar);
       setWeatherData(data.weather);
       setPredictionsData(data.predictions);
@@ -571,9 +706,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
       // Load ML predictions for today after main data is loaded
       await fetchMLPredictionsForDay(0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching dashboard data:', error);
-      setLoading(false);
+
+      if (error.message === 'TIMEOUT') {
+        setIsSlowNetwork(true);
+        // Load demo data on timeout
+        setSolarData(DEMO_DATA.solar);
+        setWeatherData(DEMO_DATA.weather);
+        setPredictionsData(DEMO_DATA.predictions);
+        setPanelConfigs(DEMO_DATA.panels);
+        setBatteryConfigs(DEMO_DATA.batteries);
+        setLoading(false);
+      } else {
+        // For other errors, we might also want to show demo data or just stop loading
+        setLoading(false);
+      }
     }
   };
 
@@ -617,8 +765,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 <button
                   onClick={() => setActiveSection('admin')}
                   className={`hidden sm:inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${activeSection === 'admin'
-                      ? 'border-purple-200 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    ? 'border-purple-200 bg-purple-50 text-purple-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                     }`}
                 >
                   Admin
@@ -627,8 +775,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <button
                 onClick={() => setActiveSection('devices')}
                 className={`hidden sm:inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${activeSection === 'devices'
-                    ? 'border-blue-200 bg-blue-50 text-blue-600'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  ? 'border-blue-200 bg-blue-50 text-blue-600'
+                  : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   }`}
               >
                 Dispositivos
@@ -650,6 +798,25 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           </div>
         </div>
       </header>
+
+      {/* Network Status Banners */}
+      {isOffline && (
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center gap-2 text-red-700 text-sm font-medium">
+            <WifiIcon className="w-4 h-4" />
+            <span>Sin conexión a internet. Mostrando datos de demostración.</span>
+          </div>
+        </div>
+      )}
+
+      {isSlowNetwork && !isOffline && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center gap-2 text-yellow-700 text-sm font-medium">
+            <ExclamationTriangleIcon className="w-4 h-4" />
+            <span>Red muy lenta detectada. Cargando datos demo del clima...</span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content - Simplificado */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-32">
