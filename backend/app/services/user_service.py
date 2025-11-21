@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from hashlib import scrypt
 from secrets import compare_digest, token_bytes
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pymongo.collection import Collection
 
@@ -87,9 +87,18 @@ def _verify_password(password: str, stored_hash: str) -> bool:
 def register_user(payload: Dict[str, Any]) -> Dict[str, Any]:
     if not payload.get("email"):
         raise ValueError("El correo es obligatorio.")
+    
+    invitation_code = payload.get("invitationCode")
+    if not invitation_code:
+        raise ValueError("El código de invitación es obligatorio.")
+        
+    # Validate code and get role
+    from app.services.invitation_service import validate_invitation_code, mark_invitation_code_as_used
+    role = validate_invitation_code(invitation_code)
+
     email = _normalize_email(payload["email"])
     password = _ensure_password(payload.get("password"))
-    role = _ensure_role(payload.get("role"))
+    # role is now determined by the invitation code
 
     if _collection().find_one({"email": email}):
         raise ValueError("Ya existe un usuario con ese correo.")
@@ -104,7 +113,15 @@ def register_user(payload: Dict[str, Any]) -> Dict[str, Any]:
         "updatedAt": now,
     }
     result = _collection().insert_one(document)
-    document["_id"] = result.inserted_id
+    user_id = result.inserted_id
+    document["_id"] = user_id
+    
+    # Mark code as used
+    try:
+        mark_invitation_code_as_used(invitation_code, str(user_id))
+    except Exception as e:
+        print(f"Error marking invitation code as used: {e}")
+        
     return _map_user(document)
 
 
@@ -117,3 +134,12 @@ def authenticate_user(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Credenciales inválidas.")
     return _map_user(user)
 
+
+def list_users() -> List[Dict[str, Any]]:
+    cursor = _collection().find().sort("createdAt", -1)
+    return [_map_user(doc) for doc in cursor]
+
+
+def is_admin(email: str) -> bool:
+    user = _collection().find_one({"email": _normalize_email(email)})
+    return user is not None and user.get("role") == "admin"

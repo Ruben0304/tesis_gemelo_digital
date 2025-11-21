@@ -9,6 +9,7 @@ import {
   ShieldCheckIcon,
   BoltIcon,
   ChartPieIcon,
+  KeyIcon,
 } from '@heroicons/react/24/outline';
 import type { User } from '@/types';
 import { executeMutation } from '@/lib/graphql-client';
@@ -24,12 +25,12 @@ const DEFAULT_DEMO: {
   name: string;
   email: string;
   password: string;
-  role?: 'user' | 'admin';
+  invitationCode?: string;
 } = {
   name: 'Operador Demo',
   email: 'demo@microrred.cu',
   password: 'Energia2025!',
-  role: 'user',
+  invitationCode: '',
 };
 
 const FEATURE_CARDS = [
@@ -55,7 +56,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'user' | 'admin'>('user');
+  const [invitationCode, setInvitationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
@@ -80,10 +81,10 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     setName(values.name);
     setEmail(values.email);
     setPassword(values.password);
-    const resolvedRole: 'admin' | 'user' = values.role ?? 'user';
-    setRole(resolvedRole);
+    setInvitationCode(values.invitationCode || '');
+
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...values, role: resolvedRole }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
     }
     setMessage({
       type: 'success',
@@ -110,13 +111,22 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
     setLoading(true);
     setMessage(null);
 
+    if (isRegister && password.length < 8) {
+      setMessage({
+        type: 'error',
+        text: 'La contraseña debe tener al menos 8 caracteres.',
+      });
+      setLoading(false);
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       email,
       password,
     };
     if (isRegister) {
       payload.name = name.trim() || undefined;
-      payload.role = role;
+      payload.invitationCode = invitationCode.trim();
     }
 
     try {
@@ -137,7 +147,6 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
       });
 
       if (typeof window !== 'undefined') {
-        const persistedRole = (user as User).role ?? role;
         const persistedName = (user as User).name ?? name;
         window.localStorage.setItem(
           STORAGE_KEY,
@@ -145,7 +154,7 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
             name: persistedName,
             email,
             password,
-            role: persistedRole,
+            invitationCode: isRegister ? '' : invitationCode, // Don't save used code
           })
         );
       }
@@ -240,18 +249,16 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
                   <button
                     type="button"
                     onClick={() => handleModeChange('login')}
-                    className={`relative z-10 flex-1 rounded-full px-4 py-2 transition-colors ${
-                      !isRegister ? 'text-slate-900' : 'hover:text-slate-700'
-                    }`}
+                    className={`relative z-10 flex-1 rounded-full px-4 py-2 transition-colors ${!isRegister ? 'text-slate-900' : 'hover:text-slate-700'
+                      }`}
                   >
                     Acceso
                   </button>
                   <button
                     type="button"
                     onClick={() => handleModeChange('register')}
-                    className={`relative z-10 flex-1 rounded-full px-4 py-2 transition-colors ${
-                      isRegister ? 'text-slate-900' : 'hover:text-slate-700'
-                    }`}
+                    className={`relative z-10 flex-1 rounded-full px-4 py-2 transition-colors ${isRegister ? 'text-slate-900' : 'hover:text-slate-700'
+                      }`}
                   >
                     Registro
                   </button>
@@ -332,20 +339,24 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
                     className="transition-all duration-500 ease-out"
                     style={{ transform: `translateY(${isRegister ? '0%' : '-8%'})`, opacity: isRegister ? 1 : 0 }}
                   >
-                    <label className="block text-sm font-medium text-slate-700" htmlFor="role">
-                      Rol
+                    <label className="block text-sm font-medium text-slate-700" htmlFor="invitationCode">
+                      Código de Invitación
                     </label>
-                    <select
-                      id="role"
-                      value={role}
-                      onChange={(event) => setRole(event.target.value as 'user' | 'admin')}
-                      className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-slate-900 shadow-inner shadow-white/40 transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200/50 focus:outline-none"
-                    >
-                      <option value="user">Operador (usuario)</option>
-                      <option value="admin">Administrador</option>
-                    </select>
+                    <div className="relative">
+                      <input
+                        id="invitationCode"
+                        type="text"
+                        required
+                        value={invitationCode}
+                        onChange={(event) => setInvitationCode(event.target.value)}
+                        className="mt-2 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 pl-10 text-slate-900 shadow-inner shadow-white/40 transition focus:border-sky-400 focus:ring-2 focus:ring-sky-200/50 focus:outline-none font-mono tracking-wider"
+                        placeholder="ABCD1234"
+                        autoComplete="off"
+                      />
+                      <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 mt-1 h-5 w-5 text-slate-400" />
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">
-                      Define permisos futuros sobre configuraciones y automatizaciones.
+                      Código único proporcionado por el administrador. Define su rol.
                     </p>
                   </div>
                 )}
@@ -353,11 +364,10 @@ export default function AuthGate({ onAuthenticated }: AuthGateProps) {
 
               {message && (
                 <div
-                  className={`rounded-2xl border px-4 py-3 text-sm shadow-inner transition ${
-                    message.type === 'error'
+                  className={`rounded-2xl border px-4 py-3 text-sm shadow-inner transition ${message.type === 'error'
                       ? 'border-red-300/60 bg-red-50 text-red-600'
                       : 'border-sky-300/60 bg-sky-50 text-sky-600'
-                  }`}
+                    }`}
                 >
                   {message.text}
                 </div>

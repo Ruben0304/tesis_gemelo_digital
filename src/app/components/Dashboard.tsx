@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import AdminPanel from './AdminPanel';
 import MetricsCards from './MetricsCards';
 import SolarProductionChart from './SolarProductionChart';
 import BatteryStatus from './BatteryStatus';
@@ -456,7 +457,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [batteryConfigs, setBatteryConfigs] = useState<BatteryConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [activeSection, setActiveSection] = useState<'overview' | 'stats' | 'devices'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'stats' | 'devices' | 'admin'>('overview');
 
   const energyFlowData = useMemo<EnergyFlow | null>(() => {
     if (!solarData) {
@@ -609,12 +610,26 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                 Gemelo Digital - Microrred Solar
               </h1>
-             
+
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
+              {user.role === 'admin' && (
+                <button
+                  onClick={() => setActiveSection('admin')}
+                  className={`hidden sm:inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${activeSection === 'admin'
+                      ? 'border-purple-200 bg-purple-50 text-purple-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                >
+                  Admin
+                </button>
+              )}
               <button
                 onClick={() => setActiveSection('devices')}
-                className="hidden sm:inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 transition-colors"
+                className={`hidden sm:inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${activeSection === 'devices'
+                    ? 'border-blue-200 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
               >
                 Dispositivos
               </button>
@@ -633,10 +648,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               </button>
             </div>
           </div>
-          {/* <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
-            <span>{user.name ?? user.email} • {user.role}</span>
-            <span>Actualizado: {lastUpdate.toLocaleTimeString('es-ES')}</span>
-          </div> */}
         </div>
       </header>
 
@@ -706,48 +717,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             onRefresh={fetchData}
           />
         )}
+
+        {activeSection === 'admin' && user.role === 'admin' && (
+          <AdminPanel currentUser={user} />
+        )}
       </main>
-
-      <FloatingBottomNav
-        active={activeSection}
-        onSelect={setActiveSection}
-        onAddDevice={handleAddDevice}
-      />
-
-      {/* Footer Simplificado */}
-      <footer className="border-t border-gray-200 bg-white mt-8 sm:mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-4 text-center">
-            <div className="p-3 bg-gray-100 rounded-lg">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Capacidad Solar</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900">
-                {solarData.config.solar.capacityKw.toFixed(1)} kW
-              </p>
-            </div>
-            <div className="p-3 bg-gray-100 rounded-lg">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Batería</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900">
-                {solarData.config.battery.capacityKwh.toFixed(1)} kWh
-              </p>
-            </div>
-            <div className="p-3 bg-gray-100 rounded-lg">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">Prod. Hoy</p>
-              <p className="text-sm sm:text-lg font-bold text-green-400">
-                {solarData.metrics.dailyProduction.toFixed(1)} kWh
-              </p>
-            </div>
-            <div className="p-3 bg-gray-100 rounded-lg">
-              <p className="text-[10px] sm:text-xs text-gray-500 mb-1">CO₂ Evitado</p>
-              <p className="text-sm sm:text-lg font-bold text-emerald-400">
-                {solarData.metrics.co2Avoided.toFixed(1)} kg
-              </p>
-            </div>
-          </div>
-          <p className="text-center text-[10px] sm:text-xs text-gray-500">
-            Datos proporcionados por Open-Meteo API • Proyecciones basadas en condiciones climáticas reales
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

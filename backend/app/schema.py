@@ -31,7 +31,7 @@ from app.services.panel_service import (
 from app.services.prediction_service import get_predictions_bundle
 from app.services.solar_service import get_solar_snapshot
 from app.services.system_config import get_system_config
-from app.services.user_service import authenticate_user, register_user
+from app.services.user_service import authenticate_user, register_user, list_users, is_admin
 from app.services.weather_service import get_weather_with_fallback
 from app.services.ml_prediction_service import (
     predict_solar_production,
@@ -47,6 +47,7 @@ from app.services.consumption_prediction_service import (
 )
 from app.services.ml_consumption_service import ml_consumption_service
 from app.services.battery_discharge_service import calculate_battery_discharge_time
+from app.services.invitation_service import create_invitation_code, list_invitation_codes
 
 
 # ============================================================================
@@ -349,6 +350,18 @@ class BatteryDischargeEstimateType:
     minutesToEmpty: Optional[int]
     startHour: int
     batteryCapacityKwh: float
+
+
+@strawberry.type
+class InvitationCodeType:
+    id_: str = strawberry.field(name="_id")
+    code: str
+    role: str
+    isUsed: bool
+    createdBy: Optional[str]
+    usedBy: Optional[str]
+    createdAt: Optional[str]
+    updatedAt: Optional[str]
 
 
 # ============================================================================
@@ -979,6 +992,29 @@ class Query:
             batteryCapacityKwh=result["batteryCapacityKwh"],
         )
 
+    @strawberry.field
+    def invitation_codes(self) -> List[InvitationCodeType]:
+        # TODO: Add admin check here if context is available
+        codes = list_invitation_codes()
+        return [
+            InvitationCodeType(
+                id_=code["_id"],
+                code=code["code"],
+                role=code["role"],
+                isUsed=code["isUsed"],
+                createdBy=code.get("createdBy"),
+                usedBy=code.get("usedBy"),
+                createdAt=code.get("createdAt"),
+                updatedAt=code.get("updatedAt"),
+            )
+            for code in codes
+        ]
+
+    @strawberry.field
+    def users(self) -> List[UserType]:
+        # TODO: Add admin check here if context is available
+        return [_map_user(user) for user in list_users()]
+
 
 # ============================================================================
 # Inputs
@@ -1022,8 +1058,9 @@ class BlackoutInput:
 class RegisterInput:
     email: str
     password: str
+    invitationCode: str
     name: Optional[str] = None
-    role: Optional[str] = None
+    # role removed, determined by code
 
 
 @strawberry.input
@@ -1108,6 +1145,22 @@ class Mutation:
     def login_user_mutation(self, input: LoginInput) -> UserType:
         user = authenticate_user(input.__dict__)
         return _map_user(user)
+
+    @strawberry.mutation(name="generateInvitationCode")
+    def generate_invitation_code_mutation(self, role: str, createdBy: str) -> InvitationCodeType:
+        if not is_admin(createdBy):
+            raise Exception("Acceso denegado. Se requieren privilegios de administrador.")
+        code = create_invitation_code(role, createdBy)
+        return InvitationCodeType(
+            id_=code["_id"],
+            code=code["code"],
+            role=code["role"],
+            isUsed=code["isUsed"],
+            createdBy=code.get("createdBy"),
+            usedBy=code.get("usedBy"),
+            createdAt=code.get("createdAt"),
+            updatedAt=code.get("updatedAt"),
+        )
 
 
 # ============================================================================

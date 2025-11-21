@@ -9,16 +9,6 @@ import {
   BlackoutSchedule,
 } from '@/types';
 import {
-  AlertTriangle,
-  Info,
-  AlertCircle,
-  CloudLightning,
-  Thermometer,
-  Gauge,
-  Zap,
-  Leaf,
-  Clock,
-  TrendingUp,
   Power,
 } from 'lucide-react';
 import { DEFAULT_SYSTEM_CONFIG } from '@/lib/systemDefaults';
@@ -70,34 +60,14 @@ export default function PredictionsPanel({
   const displayedPredictions = predictions.slice(0, 4);
   const averageProduction =
     predictions.reduce((acc, item) => acc + item.expectedProduction, 0) /
-      (predictions.length || 1);
+    (predictions.length || 1);
   const averageConsumption =
     predictions.reduce((acc, item) => acc + item.expectedConsumption, 0) /
-      (predictions.length || 1);
+    (predictions.length || 1);
   const estimatedBalance =
     fallbackPrediction.expectedProduction - fallbackPrediction.expectedConsumption;
 
-  const bestHour = displayedPredictions.reduce(
-    (best, item) =>
-      item.expectedProduction > best.expectedProduction ? item : best,
-    fallbackPrediction,
-  );
 
-  const riskHour = displayedPredictions.reduce((worst, item) => {
-    const itemBalance = item.expectedProduction - item.expectedConsumption;
-    const worstBalance = worst.expectedProduction - worst.expectedConsumption;
-    return itemBalance < worstBalance ? item : worst;
-  }, fallbackPrediction);
-
-  const surplusEnergy = Number(
-    displayedPredictions
-      .reduce(
-        (acc, item) =>
-          acc + (item.expectedProduction - item.expectedConsumption),
-        0,
-      )
-      .toFixed(1),
-  );
 
   const toTitle = (value?: string | null) =>
     value ? value.charAt(0).toUpperCase() + value.slice(1) : undefined;
@@ -161,74 +131,74 @@ export default function PredictionsPanel({
 
   const observedFeed = weather
     ? {
-        provider: weather.provider ?? 'OpenWeather • One Call 3.0',
-        location: weather.locationName ?? resolvedConfig.location.name,
-        temperature: weather.temperature,
-        humidity: weather.humidity,
-        windSpeed: weather.windSpeed,
-        solarRadiation: weather.solarRadiation,
-        cloudCover: weather.cloudCover,
-        condition:
-          toTitle(weather.description) ??
-          describeClouds(weather.cloudCover),
-        lastSync: weatherTime,
-      }
+      provider: weather.provider ?? 'OpenWeather • One Call 3.0',
+      location: weather.locationName ?? resolvedConfig.location.name,
+      temperature: weather.temperature,
+      humidity: weather.humidity,
+      windSpeed: weather.windSpeed,
+      solarRadiation: weather.solarRadiation,
+      cloudCover: weather.cloudCover,
+      condition:
+        toTitle(weather.description) ??
+        describeClouds(weather.cloudCover),
+      lastSync: weatherTime,
+    }
     : {
-        provider: 'Fuente climática simulada',
-        location: resolvedConfig.location.name,
-        temperature: Number((27 + averageProduction * 0.18).toFixed(1)),
-        humidity: Math.round(
-          Math.min(92, Math.max(52, 68 + (averageConsumption - averageProduction) * 3)),
-        ),
-        windSpeed: Number(
-          (11 + Math.max(0, averageConsumption - averageProduction) * 0.25).toFixed(1),
-        ),
-        solarRadiation: Math.round(620 + averageProduction * 35),
-        cloudCover: Math.round(
-          Math.min(95, Math.max(18, 45 + (averageConsumption - averageProduction) * 5)),
-        ),
-        condition:
-          estimatedBalance >= 0
-            ? 'Radiación favorable para generación estimada'
-            : 'Nubosidad prevista que limita la captación',
-        lastSync: formattedTime,
-      };
+      provider: 'Fuente climática simulada',
+      location: resolvedConfig.location.name,
+      temperature: Number((27 + averageProduction * 0.18).toFixed(1)),
+      humidity: Math.round(
+        Math.min(92, Math.max(52, 68 + (averageConsumption - averageProduction) * 3)),
+      ),
+      windSpeed: Number(
+        (11 + Math.max(0, averageConsumption - averageProduction) * 0.25).toFixed(1),
+      ),
+      solarRadiation: Math.round(620 + averageProduction * 35),
+      cloudCover: Math.round(
+        Math.min(95, Math.max(18, 45 + (averageConsumption - averageProduction) * 5)),
+      ),
+      condition:
+        estimatedBalance >= 0
+          ? 'Radiación favorable para generación estimada'
+          : 'Nubosidad prevista que limita la captación',
+      lastSync: formattedTime,
+    };
 
   const todayForecast = weather?.forecast?.[0];
   const tomorrowForecast = weather?.forecast?.[1];
 
   const extendedFeed = weather
     ? {
-        provider: 'Pronóstico extendido',
-        solarIrradiance: todayForecast?.solarRadiation ?? observedFeed.solarRadiation ?? 0,
-        cloudCover: todayForecast?.cloudCover ?? weather.cloudCover ?? 0,
-        rainChance: Math.min(95, Math.round((todayForecast?.cloudCover ?? 0) * 1.1)),
-        airQuality: `Estimado por nubosidad • ${Math.round(
-          30 + (todayForecast?.cloudCover ?? weather.cloudCover ?? 0) * 0.4,
-        )}`,
-        lastSync: weatherTime,
-        commentary: todayForecast
-          ? `${toTitle(todayForecast.dayOfWeek)}: ${describeClouds(
-              todayForecast.cloudCover,
-            )}, producción prevista ≈${todayForecast.predictedProduction.toFixed(0)} kWh.`
-          : 'Predicción basada en promedio climatológico local.',
-      }
+      provider: 'Pronóstico extendido',
+      solarIrradiance: todayForecast?.solarRadiation ?? observedFeed.solarRadiation ?? 0,
+      cloudCover: todayForecast?.cloudCover ?? weather.cloudCover ?? 0,
+      rainChance: Math.min(95, Math.round((todayForecast?.cloudCover ?? 0) * 1.1)),
+      airQuality: `Estimado por nubosidad • ${Math.round(
+        30 + (todayForecast?.cloudCover ?? weather.cloudCover ?? 0) * 0.4,
+      )}`,
+      lastSync: weatherTime,
+      commentary: todayForecast
+        ? `${toTitle(todayForecast.dayOfWeek)}: ${describeClouds(
+          todayForecast.cloudCover,
+        )}, producción prevista ≈${todayForecast.predictedProduction.toFixed(0)} kWh.`
+        : 'Predicción basada en promedio climatológico local.',
+    }
     : {
-        provider: 'ClimaLatam Insight',
-        solarIrradiance: Math.round(620 + averageProduction * 35),
-        cloudCover: Math.round(
-          Math.min(95, Math.max(18, 45 + (averageConsumption - averageProduction) * 5)),
-        ),
-        rainChance: Math.round(
-          Math.max(3, Math.min(70, (100 - fallbackPrediction.confidence) * 0.8)),
-        ),
-        airQuality: `AQI ${Math.round(34 + (averageConsumption - averageProduction) * 1.2)} • Bueno`,
-        lastSync: formattedTime,
-        commentary:
-          fallbackPrediction.confidence > 80
-            ? 'Condiciones favorables para la estimación del arreglo.'
-            : 'Posibles micro-nubes en la tarde, ajustar cargas no críticas.',
-      };
+      provider: 'ClimaLatam Insight',
+      solarIrradiance: Math.round(620 + averageProduction * 35),
+      cloudCover: Math.round(
+        Math.min(95, Math.max(18, 45 + (averageConsumption - averageProduction) * 5)),
+      ),
+      rainChance: Math.round(
+        Math.max(3, Math.min(70, (100 - fallbackPrediction.confidence) * 0.8)),
+      ),
+      airQuality: `AQI ${Math.round(34 + (averageConsumption - averageProduction) * 1.2)} • Bueno`,
+      lastSync: formattedTime,
+      commentary:
+        fallbackPrediction.confidence > 80
+          ? 'Condiciones favorables para la estimación del arreglo.'
+          : 'Posibles micro-nubes en la tarde, ajustar cargas no críticas.',
+    };
 
   const irradianceFactor = Math.min(
     1,
@@ -265,63 +235,12 @@ export default function PredictionsPanel({
     batteryCapacity: batteryCapacityKwh,
   };
 
-  const getAlertIcon = (type: Alert['type']) => {
-    switch (type) {
-      case 'critical':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
-      case 'info':
-        return <Info className="w-4 h-4 text-blue-500" />;
-    }
-  };
 
-  const getAlertColor = (type: Alert['type']) => {
-    switch (type) {
-      case 'critical':
-        return 'bg-red-50 border-red-200';
-      case 'warning':
-        return 'bg-yellow-50 border-yellow-200';
-      case 'info':
-        return 'bg-blue-50 border-blue-200';
-    }
-  };
 
   return (
     <div className="space-y-6">
       {/* Alerts Section */}
-      {alerts.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-yellow-500" />
-            <h2 className="text-xl font-bold text-gray-900">
-              Alertas inteligentes ({alerts.length})
-            </h2>
-          </div>
-          <div className="space-y-2">
-            {alerts.map((alert) => (
-              <div
-                key={alert.id}
-                className={`flex items-start gap-3 p-3 rounded-lg border ${getAlertColor(alert.type)}`}
-              >
-                <div className="mt-0.5">{getAlertIcon(alert.type)}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {alert.title}
-                  </p>
-                  <p className="text-xs text-gray-600">{alert.message}</p>
-                </div>
-                <span className="text-[10px] text-gray-500 uppercase tracking-wide">
-                  {new Date(alert.timestamp).toLocaleTimeString('es-ES', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {blackoutEntries.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
@@ -546,99 +465,7 @@ export default function PredictionsPanel({
         </p>
       </div> */}
 
-      {/* Simulated predictions */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-5 h-5 text-purple-500" />
-          <h2 className="text-xl font-bold text-gray-900">Predicciones simuladas</h2>
-        </div>
-        <p className="text-xs text-gray-600 mb-4">
-          Estimaciones generadas a partir de clima en vivo y ficha técnica del panel;
-          no representan mediciones reales de la planta.
-        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-          <div className="p-4 rounded-lg border border-purple-200 bg-purple-50">
-            <p className="text-xs uppercase tracking-wide text-purple-500 mb-1">
-              Hora más productiva
-            </p>
-            <p className="text-lg font-semibold text-gray-900">
-              {bestHour.hour}:00 — {bestHour.expectedProduction.toFixed(1)} kW
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              Confianza: {bestHour.confidence}%
-            </p>
-          </div>
-          <div className="p-4 rounded-lg border border-purple-200 bg-gray-50">
-            <p className="text-xs uppercase tracking-wide text-purple-500 mb-1">
-              Mayor riesgo
-            </p>
-            <p className="text-lg font-semibold text-gray-900">
-              {riskHour.hour}:00 —{' '}
-              {(riskHour.expectedProduction - riskHour.expectedConsumption).toFixed(1)} kWh
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              Ajustar cargas no críticas en este bloque.
-            </p>
-          </div>
-          <div className="p-4 rounded-lg border border-purple-200 bg-gray-50">
-            <p className="text-xs uppercase tracking-wide text-purple-500 mb-1">
-              Balance estimado 4h
-            </p>
-            <p
-              className={`text-lg font-semibold ${
-                surplusEnergy >= 0 ? 'text-emerald-500' : 'text-red-500'
-              }`}
-            >
-              {surplusEnergy >= 0 ? '+' : ''}
-              {surplusEnergy} kWh
-            </p>
-            <p className="text-xs text-gray-600 mt-1">
-              Basado en insumos climáticos combinados.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {displayedPredictions.map((prediction) => {
-            const balance = prediction.expectedProduction - prediction.expectedConsumption;
-            const impact = prediction.blackoutImpact;
-            const cardClasses = impact
-              ? 'flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3'
-              : 'flex items-center justify-between rounded-lg border border-purple-200 bg-purple-50 px-4 py-3';
-            const intervalStart = impact ? new Date(impact.intervalStart) : null;
-            const intervalEnd = impact ? new Date(impact.intervalEnd) : null;
-            return (
-              <div key={prediction.timestamp} className={cardClasses}>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {prediction.hour}:00 • Confianza {prediction.confidence}%
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    Producción estimada {prediction.expectedProduction.toFixed(1)} kW ·
-                    Consumo proyectado {prediction.expectedConsumption.toFixed(1)} kW
-                  </p>
-                  {impact && intervalStart && intervalEnd && (
-                    <p className="text-xs text-red-600 mt-1">
-                      Apagón {impact.intensity} {formatTime(intervalStart)} – {formatTime(intervalEnd)} ·
-                      Consumo reducido al {(impact.loadFactor * 100).toFixed(0)}%
-                      {impact.note ? ` • ${impact.note}` : ''}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className={`text-sm font-semibold ${
-                    balance >= 0 ? 'text-emerald-500' : 'text-red-500'
-                  }`}
-                >
-                  {balance >= 0 ? '+' : ''}
-                  {balance.toFixed(1)} kWh
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* Recommendations */}
       {/* {recommendations.length > 0 && (

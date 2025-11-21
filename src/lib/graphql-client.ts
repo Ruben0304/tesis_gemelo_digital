@@ -24,9 +24,10 @@ export const graphqlClient = new Client({
  */
 export async function executeQuery<T = any>(
   query: string,
-  variables?: Record<string, any>
+  variables?: Record<string, any>,
+  requestPolicy?: 'cache-first' | 'cache-only' | 'network-only' | 'cache-and-network'
 ): Promise<T> {
-  const result = await graphqlClient.query(query, variables).toPromise()
+  const result = await graphqlClient.query(query, variables, { requestPolicy }).toPromise()
 
   if (result.error) {
     console.error('GraphQL Error:', result.error)
